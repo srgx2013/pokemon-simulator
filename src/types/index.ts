@@ -81,6 +81,7 @@ export interface Scenario {
 }
 
 export interface DeckPreset {
+  id?: string;
   name: string;
   description: string;
   pokemon: Omit<PokemonCard, 'id'>[];

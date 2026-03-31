@@ -159,17 +159,56 @@ export function parseDeckList(text: string): { pokemon: any[], trainers: any[], 
   const trainers: any[] = [];
   const energies: any[] = [];
   
+  const energyKeywords = ['psychic', 'fire', 'water', 'grass', 'electric', 'fighting', 'darkness', 'metal', 'dragon', 'fairy', 'normal', 'special', 'psychic'];
   const trainerNames = [
     "Lillie's Determination", 'Iono', "Boss's Orders", 'Buddy-Buddy Poffin',
     'Counter Catcher', 'Night Stretcher', 'Jamming Tower', 'Hilda',
     'Ultra Ball', 'PokePad', "Professor's Research", 'Nest Ball', 'Switch',
     'Rare Candy', 'Super Rod', 'Fire Crystal', 'Arven', 'Crisice Rider',
-    'Poké Pad', 'Secret Box', 'Technical Machine', 'Bravery Charm', 'Spikemuth Gym', 'Artazon', 'Air Balloon', "Marnie's"
+    'Poké Pad', 'Secret Box', 'Technical Machine', 'Bravery Charm', 'Spikemuth Gym', 'Artazon', 'Air Balloon', "Marnie's",
+    'Poffin', 'Gym'
   ];
   
   for (const line of lines) {
     const trimmed = line.trim();
-    if (!trimmed || trimmed === 'Pokémon:' || trimmed === 'Trainer:' || trimmed === 'Energy:') continue;
+    // Skip empty lines and section headers - be flexible withPokémon/Pokemon
+    if (!trimmed || trimmed.toLowerCase() === 'pokémon:' || trimmed.toLowerCase() === 'pokemon:' || trimmed.toLowerCase() === 'trainer:' || trimmed.toLowerCase() === 'energy:') continue;
+    
+    // Check if this is an energy card first (before other patterns)
+    const isEnergy = energyKeywords.some(e => trimmed.toLowerCase().includes(e.toLowerCase()) && trimmed.toLowerCase().includes('energy'));
+    
+    if (isEnergy) {
+      // Pattern: "4 Psychic Energy" or "4 Psychic Energy MEE 7" or "9 Darkness Energy MEE 7"
+      const energyMatch = trimmed.match(/^(\d+)\s+(.+?)\s+Energy/i);
+      if (energyMatch) {
+        const quantity = parseInt(energyMatch[1]);
+        let energyType = energyMatch[2].toLowerCase();
+        // Clean up energy type - remove set codes like MEE 7
+        energyType = energyType.replace(/mee\s*\d+/i, '').replace(/\s+/g, '').trim();
+        
+        // Map common variations - ORDER MATTERS: check more specific first
+        if (energyType.includes('darkness')) energyType = 'darkness';
+        else if (energyType.includes('psychic')) energyType = 'psychic';
+        else if (energyType.includes('fire')) energyType = 'fire';
+        else if (energyType.includes('water')) energyType = 'water';
+        else if (energyType.includes('grass')) energyType = 'grass';
+        else if (energyType.includes('elec')) energyType = 'electric';
+        else if (energyType.includes('fight')) energyType = 'fighting';
+        else if (energyType.includes('metal')) energyType = 'metal';
+        else if (energyType.includes('dragon')) energyType = 'dragon';
+        else if (energyType.includes('fairy')) energyType = 'fairy';
+        else if (energyType.includes('normal')) energyType = 'normal';
+        else if (energyType.includes('special')) energyType = 'special';
+        
+        for (let i = 0; i < quantity; i++) {
+          energies.push({ 
+            type: energyType as EnergyType,
+            quantity: 1 
+          });
+        }
+        continue;
+      }
+    }
     
     // Pattern 1: "4 Munkidori TWM 95" - no parentheses
     // Pattern 2: "4 Munkidori (TWM 95)" - with parentheses, space instead of dash
@@ -206,6 +245,7 @@ export function parseDeckList(text: string): { pokemon: any[], trainers: any[], 
     });
     
     if (cardKey && cardDatabase[cardKey]) {
+      console.log('Found Pokemon:', cardKey, 'qty:', quantity);
       for (let i = 0; i < quantity; i++) {
         pokemon.push({ ...cardDatabase[cardKey], rarity: cardDatabase[cardKey].rarity });
       }
@@ -230,8 +270,6 @@ export function parseDeckList(text: string): { pokemon: any[], trainers: any[], 
       }
     }
   }
-  
-  console.log(`Imported: ${pokemon.length} Pokemon, ${trainers.length} Trainers, ${energies.length} Energies`);
   
   return { pokemon, trainers, energies };
 }
