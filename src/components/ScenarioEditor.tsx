@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { v4 as uuidv4 } from 'uuid';
 
-type EditingSection = 'prizes' | 'hand' | 'discard' | 'deck' | 'active' | 'bench' | 'all';
+type EditingSection = 'prizes' | 'hand' | 'discard' | 'deck' | 'active' | 'bench' | 'picker' | 'all';
 
 interface Props {
   player: 'player1' | 'player2';
@@ -12,6 +12,7 @@ export function ScenarioEditor({ player }: Props) {
   const [showEditor, setShowEditor] = useState(false);
   const [section, setSection] = useState<EditingSection>('all');
   const [newCardText, setNewCardText] = useState('');
+  const [filterText, setFilterText] = useState('');
   
   const gameState = useGameStore(state => state.gameState);
   const setActivePokemon = useGameStore(state => state.setActivePokemon);
@@ -24,9 +25,28 @@ export function ScenarioEditor({ player }: Props) {
   const clearActivePokemon = useGameStore(state => state.clearActivePokemon);
   const clearBenchPokemon = useGameStore(state => state.clearBenchPokemon);
   const setStatus = useGameStore(state => state.setStatus);
+  const player1Deck = useGameStore(state => state.player1Deck);
+  const player2Deck = useGameStore(state => state.player2Deck);
   
   const playerState = player === 'player1' ? gameState.player1 : gameState.player2;
   const playerLabel = player === 'player1' ? 'Tú' : 'Oponente';
+  const selectedDeck = player === 'player1' ? player1Deck : player2Deck;
+  
+  // Get available cards from the selected deck
+  const availableCards = selectedDeck 
+    ? [
+        ...selectedDeck.pokemon.map(c => ({ ...c, category: 'pokemon' })),
+        ...selectedDeck.trainers.map(c => ({ ...c, category: 'trainer' })),
+        ...(selectedDeck.energies || []).flatMap(e => 
+          Array(e.quantity).fill({ name: e.type + ' Energy', type: 'energy', energyType: e.type, category: 'energy' })
+        ),
+      ]
+    : [];
+  
+  const addCardFromPicker = (card: any, target: 'hand' | 'discard' | 'prizes' | 'deck') => {
+    const cardWithId = { ...card, id: uuidv4() };
+    addCards([cardWithId], target);
+  };
   
   const parseCardName = (text: string) => {
     // Simple parser for card text - could be enhanced
@@ -163,6 +183,7 @@ export function ScenarioEditor({ player }: Props) {
       </div>
       
       <div className="editor-tabs">
+        <button className={section === 'picker' ? 'active' : ''} onClick={() => setSection('picker')}>📋 Cartas</button>
         <button className={section === 'all' ? 'active' : ''} onClick={() => setSection('all')}>Todo</button>
         <button className={section === 'prizes' ? 'active' : ''} onClick={() => setSection('prizes')}>Prizes</button>
         <button className={section === 'hand' ? 'active' : ''} onClick={() => setSection('hand')}>Mano</button>
@@ -173,6 +194,39 @@ export function ScenarioEditor({ player }: Props) {
       </div>
       
       <div className="editor-content">
+        {section === 'picker' && selectedDeck && (
+          <div className="editor-section">
+            <h5>📋 Cartas de {selectedDeck.name} ({availableCards.length})</h5>
+            <input
+              type="text"
+              placeholder="Buscar carta..."
+              value={filterText}
+              onChange={e => setFilterText(e.target.value)}
+              className="card-filter-input"
+            />
+            <div className="card-picker-grid">
+              {availableCards
+                .filter(c => !filterText || c.name.toLowerCase().includes(filterText.toLowerCase()))
+                .map((card, i) => (
+                  <div key={i} className="card-picker-item">
+                    <span className="picker-card-name">{card.name}</span>
+                    <span className="picker-card-type">{card.category}</span>
+                    <div className="picker-buttons">
+                      <button onClick={() => addCardFromPicker(card, 'hand')}>Mano</button>
+                      <button onClick={() => addCardFromPicker(card, 'prizes')}>Prize</button>
+                      <button onClick={() => addCardFromPicker(card, 'discard')}>Desc.</button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+            {!selectedDeck && (
+              <p className="no-deck-message">
+                Seleccioná un mazo primero en "Nueva Partida"
+              </p>
+            )}
+          </div>
+        )}
+        
         {(section === 'all' || section === 'prizes') && (
           <div className="editor-section">
             <h5>🎯 Prizes ({playerState.prizes.length})</h5>

@@ -1909,3 +1909,76 @@ body {
   font-size: 0.65rem;
   cursor: pointer;
 }
+
+/* CARD PICKER */
+.card-filter-input {
+  width: 100%;
+  padding: 0.5rem;
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
+}
+
+.card-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.5rem;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+
+.card-picker-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  background: var(--secondary);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.picker-card-name {
+  font-weight: 600;
+  font-size: 0.75rem;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.picker-card-type {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.picker-buttons {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+.picker-buttons button {
+  flex: 1;
+  padding: 0.25rem 0.25rem;
+  background: var(--primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 0.6rem;
+  cursor: pointer;
+}
+
+.picker-buttons button:hover {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.no-deck-message {
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 1rem;
+}
