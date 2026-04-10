@@ -107,16 +107,27 @@ export function ScenarioEditor({ player }: Props) {
   
   const handleRemoveCard = (target: 'hand' | 'discard' | 'prizes' | 'deck', index: number) => {
     const playerObj = player === 'player1' ? 'player1' : 'player2';
+    let removedCard: any = null;
+    
     switch (target) {
       case 'hand':
+        removedCard = playerState.hand[index];
         setHand(playerObj, playerState.hand.filter((_, i) => i !== index));
         break;
       case 'discard':
+        removedCard = playerState.discardPile[index];
         setDiscard(playerObj, playerState.discardPile.filter((_, i) => i !== index));
         break;
       case 'prizes':
+        removedCard = playerState.prizes[index];
         setPrizes(playerObj, playerState.prizes.filter((_, i) => i !== index));
         break;
+    }
+    
+    // Add removed card back to deck
+    if (removedCard) {
+      const cardWithId = { ...removedCard, id: uuidv4() };
+      setDeck(playerObj, [...playerState.deck, cardWithId]);
     }
   };
   
