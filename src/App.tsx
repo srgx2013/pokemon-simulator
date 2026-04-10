@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useGameStore } from './store/gameStore';
 import { BattleField, DeckSelector } from './components/BattleField';
 import { AIPanel } from './components/AIPanel';
+import { ScenarioEditor } from './components/ScenarioEditor';
 import { v4 as uuidv4 } from 'uuid';
 
 function App() {
@@ -177,6 +178,7 @@ function App() {
                   🔄 Mulligan
                 </button>
               )}
+              <ScenarioEditor player="player1" />
             </div>
 
             {/* Discard */}
@@ -248,6 +250,7 @@ function App() {
                   🔄 Mulligan
                 </button>
               )}
+              <ScenarioEditor player="player2" />
             </div>
 
             {/* Discard */}

@@ -1625,3 +1625,287 @@ body {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.7; }
 }
+
+/* SCENARIO EDITOR */
+.editor-toggle-btn {
+  display: block;
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.editor-toggle-btn:hover {
+  background: var(--primary);
+  border-color: var(--accent);
+}
+
+.scenario-editor {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-height: 50vh;
+  overflow-y: auto;
+  background: var(--secondary);
+  border-top: 2px solid var(--accent);
+  padding: 1rem;
+  z-index: 100;
+}
+
+.editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.editor-header h4 {
+  color: var(--accent);
+  margin: 0;
+}
+
+.editor-header .close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.editor-tabs {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.editor-tabs button {
+  padding: 0.4rem 0.6rem;
+  background: var(--primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+
+.editor-tabs button.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.editor-section {
+  background: var(--primary);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.editor-section h5 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+}
+
+.card-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+  max-height: 80px;
+  overflow-y: auto;
+}
+
+.card-item {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.4rem;
+  background: var(--secondary);
+  border-radius: 4px;
+  font-size: 0.7rem;
+}
+
+.card-item .card-name {
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-item .remove-btn {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.7rem;
+}
+
+.empty-list {
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+}
+
+.deck-count-info {
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  padding: 0.5rem;
+}
+
+.add-cards {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.add-cards textarea {
+  flex: 1;
+  padding: 0.4rem;
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 0.7rem;
+  resize: none;
+}
+
+.add-cards button {
+  padding: 0.4rem 0.6rem;
+  background: var(--success);
+  border: none;
+  border-radius: 4px;
+  color: #000;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+
+.pokemon-editable {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: var(--secondary);
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+}
+
+.pokemon-name {
+  font-weight: bold;
+  color: var(--text-primary);
+}
+
+.pokemon-hp {
+  color: var(--success);
+}
+
+.pokemon-controls {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.pokemon-controls button {
+  padding: 0.2rem 0.4rem;
+  background: var(--primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 0.65rem;
+  cursor: pointer;
+}
+
+.status-select select {
+  padding: 0.2rem;
+  background: var(--primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 0.65rem;
+}
+
+.remove-active-btn {
+  padding: 0.3rem 0.5rem;
+  background: var(--accent);
+  border: none;
+  border-radius: 4px;
+  color: white;
+  font-size: 0.65rem;
+  cursor: pointer;
+}
+
+.empty-active {
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  padding: 0.5rem;
+  text-align: center;
+}
+
+.bench-slots-editor {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.5rem;
+}
+
+.bench-slot-editor {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  background: var(--secondary);
+  border-radius: 6px;
+}
+
+.slot-number {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+}
+
+.pokemon-mini {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 0.65rem;
+}
+
+.pokemon-mini button {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.empty-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.mini-input {
+  width: 100%;
+  padding: 0.2rem;
+  background: var(--primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 0.6rem;
+  resize: none;
+}
+
+.empty-slot button {
+  padding: 0.2rem 0.4rem;
+  background: var(--success);
+  border: none;
+  border-radius: 4px;
+  color: #000;
+  font-size: 0.65rem;
+  cursor: pointer;
+}

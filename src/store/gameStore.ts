@@ -44,7 +44,13 @@ interface GameStore {
   drawCards: (player: 'player1' | 'player2', count: number) => void;
   addToHand: (player: 'player1' | 'player2', cards: any[]) => void;
   setHand: (player: 'player1' | 'player2', cards: any[]) => void;
-  addToDiscard: (player: 'player1' | 'player2', cards: any[]) => void;
+addToDiscard: (player: 'player1' | 'player2', cards: any[]) => void;
+  setDiscard: (player: 'player1' | 'player2', cards: any[]) => void;
+  setDeck: (player: 'player1' | 'player2', cards: any[]) => void;
+  setPrizes: (player: 'player1' | 'player2', cards: any[]) => void;
+  setBench: (player: 'player1' | 'player2', bench: (PokemonInstance | null)[]) => void;
+  clearActivePokemon: (player: 'player1' | 'player2') => void;
+  clearBenchPokemon: (player: 'player1' | 'player2', position: number) => void;
   
   saveScenario: (name: string) => void;
   loadScenario: (id: string) => void;
@@ -458,6 +464,98 @@ export const useGameStore = create<GameStore>((set, get) => ({
           [player]: {
             ...playerState,
             discardPile: [...playerState.discardPile, ...cards],
+          },
+        },
+      };
+    });
+  },
+
+  setDiscard: (player, cards) => {
+    set(state => {
+      const playerState = player === 'player1' ? state.gameState.player1 : state.gameState.player2;
+      return {
+        gameState: {
+          ...state.gameState,
+          [player]: {
+            ...playerState,
+            discardPile: cards,
+          },
+        },
+      };
+    });
+  },
+
+  setDeck: (player, cards) => {
+    set(state => {
+      const playerState = player === 'player1' ? state.gameState.player1 : state.gameState.player2;
+      return {
+        gameState: {
+          ...state.gameState,
+          [player]: {
+            ...playerState,
+            deck: cards,
+          },
+        },
+      };
+    });
+  },
+
+  setPrizes: (player, cards) => {
+    set(state => {
+      const playerState = player === 'player1' ? state.gameState.player1 : state.gameState.player2;
+      return {
+        gameState: {
+          ...state.gameState,
+          [player]: {
+            ...playerState,
+            prizes: cards,
+          },
+        },
+      };
+    });
+  },
+
+  setBench: (player, bench) => {
+    set(state => {
+      const playerState = player === 'player1' ? state.gameState.player1 : state.gameState.player2;
+      return {
+        gameState: {
+          ...state.gameState,
+          [player]: {
+            ...playerState,
+            bench: bench,
+          },
+        },
+      };
+    });
+  },
+
+  clearActivePokemon: (player) => {
+    set(state => {
+      const playerState = player === 'player1' ? state.gameState.player1 : state.gameState.player2;
+      return {
+        gameState: {
+          ...state.gameState,
+          [player]: {
+            ...playerState,
+            active: null,
+          },
+        },
+      };
+    });
+  },
+
+  clearBenchPokemon: (player, position) => {
+    set(state => {
+      const playerState = player === 'player1' ? state.gameState.player1 : state.gameState.player2;
+      const newBench = [...playerState.bench];
+      newBench[position] = null;
+      return {
+        gameState: {
+          ...state.gameState,
+          [player]: {
+            ...playerState,
+            bench: newBench,
           },
         },
       };
