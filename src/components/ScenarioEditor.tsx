@@ -34,7 +34,7 @@ export function ScenarioEditor({ player }: Props) {
   const playerLabel = player === 'player1' ? 'Tú' : 'Oponente';
   const selectedDeck = player === 'player1' ? player1Deck : player2Deck;
   
-  // Get names of all used cards FIRST (prizes, hand, discard, active, bench)
+  // Get names of all used cards FIRST (prizes, hand, discard, active, bench, deck)
   const usedCardNames = new Set<string>();
   playerState.prizes.forEach(c => usedCardNames.add(c.name));
   playerState.hand.forEach(c => usedCardNames.add(c.name));
@@ -43,6 +43,8 @@ export function ScenarioEditor({ player }: Props) {
   playerState.bench.forEach(p => {
     if (p) usedCardNames.add(p.card.name);
   });
+  // Also exclude cards already in deck
+  playerState.deck.forEach(c => usedCardNames.add(c.name));
   
   // Get only pokemon from the selected deck (filter out used ones)
   const deckPokemon = selectedDeck ? selectedDeck.pokemon.filter(p => !usedCardNames.has(p.name)) : [];
