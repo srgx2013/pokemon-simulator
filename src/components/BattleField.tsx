@@ -94,7 +94,7 @@ export function BattleField({ player, isCurrentPlayer = false }: Props) {
     const fromHand = e.dataTransfer.getData('fromHand');
     const handIndex = parseInt(e.dataTransfer.getData('handIndex') || '-1');
     
-    // Es un Pokémon de la mano del oponente
+    // Es un Pokémon
     if (card.hp && (card.stage || card.retreatCost)) {
       const pokemonCard: PokemonCardType = {
         id: uuidv4(),
@@ -117,13 +117,15 @@ export function BattleField({ player, isCurrentPlayer = false }: Props) {
         isActive: false,
         benchPosition: position,
       };
-      // Use targetPlayer for bench placement (opponent when dragging from opponent hand)
+      // Use targetPlayer for bench placement
       setBenchPokemon(targetPlayer, position, instance);
       
-      // Si vino de la mano del oponente, removerlo de ahí
-      if (fromHand === 'opponent' && handIndex >= 0) {
-        const newHand = opponentState.hand.filter((_: any, i: number) => i !== handIndex);
-        setHand('player2', newHand);
+      // Remove from hand if dragged from hand
+      if (fromHand && handIndex >= 0) {
+        const sourcePlayer = fromHand === 'opponent' ? 'player2' : 'player1';
+        const sourceHand = sourcePlayer === 'player1' ? playerState.hand : opponentState.hand;
+        const newHand = sourceHand.filter((_: any, i: number) => i !== handIndex);
+        setHand(sourcePlayer, newHand);
       }
     }
   };
@@ -137,7 +139,7 @@ export function BattleField({ player, isCurrentPlayer = false }: Props) {
     const fromHand = e.dataTransfer.getData('fromHand');
     const handIndex = parseInt(e.dataTransfer.getData('handIndex') || '-1');
     
-    // Es un Pokémon de la mano del oponente
+    // Es un Pokémon
     if (card.hp && (card.stage || card.retreatCost)) {
       const pokemonCard: PokemonCardType = {
         id: uuidv4(),
@@ -159,13 +161,15 @@ export function BattleField({ player, isCurrentPlayer = false }: Props) {
         damage: 0,
         isActive: true,
       };
-      // Use targetPlayer for active placement (opponent when dragging from opponent hand)
+      // Use targetPlayer for active placement
       setActivePokemon(targetPlayer, instance);
       
-      // Si vino de la mano del oponente, removerlo de ahí
-      if (fromHand === 'opponent' && handIndex >= 0) {
-        const newHand = opponentState.hand.filter((_: any, i: number) => i !== handIndex);
-        setHand('player2', newHand);
+      // Remove from hand if dragged from hand
+      if (fromHand && handIndex >= 0) {
+        const sourcePlayer = fromHand === 'opponent' ? 'player2' : 'player1';
+        const sourceHand = sourcePlayer === 'player1' ? playerState.hand : opponentState.hand;
+        const newHand = sourceHand.filter((_: any, i: number) => i !== handIndex);
+        setHand(sourcePlayer, newHand);
       }
     }
   };

@@ -33,8 +33,10 @@ function App() {
     drawCards('player1', count);
   };
   
-  const handleDragStart = (e: React.DragEvent, card: any) => {
+  const handleDragStart = (e: React.DragEvent, card: any, index: number) => {
     e.dataTransfer.setData('card', JSON.stringify(card));
+    e.dataTransfer.setData('fromHand', 'player1');
+    e.dataTransfer.setData('handIndex', index.toString());
   };
   
   // Drag from opponent hand
@@ -153,7 +155,7 @@ function App() {
               >
                 {playerHand.length > 0 ? (
                   playerHand.map((c: any, i) => (
-                    <div key={i} className="hand-card" draggable onDragStart={(e) => handleDragStart(e, c)}>
+                    <div key={i} className="hand-card" draggable onDragStart={(e) => handleDragStart(e, c, i)}>
                       {'hp' in c ? (
                         <>
                           <span className="card-type-indicator pokemon-type"></span>
