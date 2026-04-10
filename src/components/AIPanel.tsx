@@ -20,15 +20,36 @@ export function AIPanel() {
   const getStateForAI = useGameStore(state => state.getStateForAI);
   const gameState = useGameStore(state => state.gameState);
 
+  const copyStateToClipboard = async () => {
+    const stateText = getStateForAI();
+    
+    try {
+      await navigator.clipboard.writeText(stateText);
+      alert('✅ Estado copiado al portapapeles.\n\nPega este texto en tu IA favorita para análisis.');
+      return stateText;
+    } catch (error) {
+      console.error('Copy error:', error);
+      // Fallback: seleccionar texto
+      const textarea = document.createElement('textarea');
+      textarea.value = stateText;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      alert('✅ Estado copiado (fallback).\n\nPega este texto en tu IA favorita para análisis.');
+      return stateText;
+    }
+  };
+
   const analyze = async () => {
+    // First copy state to clipboard
+    const stateText = await copyStateToClipboard();
+    
     if (!apiKey) {
-      alert('Por favor ingresa una API key de HuggingFace');
-      return;
+      return; // Still copied, but don't call API
     }
 
     setLoading(true);
-    
-    const stateText = getStateForAI();
     
     const prompt = `You are an expert Pokémon TCG player. Analyze the current game state and provide strategic advice.
 
@@ -247,6 +268,9 @@ ODDS: Win: X% | Lose: Y% | Draw: Z%
       </div>
 
       <div className="ai-actions">
+        <button onClick={copyStateToClipboard} className="copy-btn">
+          📋 Copiar Estado
+        </button>
         <button onClick={analyze} disabled={loading} className="analyze-btn">
           {loading ? '⏳ Analizando...' : '🔍 Analizar con IA'}
         </button>
