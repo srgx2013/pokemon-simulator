@@ -85,13 +85,14 @@ export function BattleField({ player, isCurrentPlayer = false }: Props) {
     e.preventDefault();
   };
 
-  const handleDropToBench = (e: React.DragEvent, position: number) => {
+  const handleDropToBench = (e: React.DragEvent, position: number, targetPlayer: 'player1' | 'player2' = 'player1') => {
     e.preventDefault();
     const cardData = e.dataTransfer.getData('card');
     if (!cardData) return;
     
     const card = JSON.parse(cardData);
     const fromHand = e.dataTransfer.getData('fromHand');
+    const handIndex = parseInt(e.dataTransfer.getData('handIndex') || '-1');
     
     // Es un Pokémon de la mano del oponente
     if (card.hp && (card.stage || card.retreatCost)) {
@@ -116,23 +117,25 @@ export function BattleField({ player, isCurrentPlayer = false }: Props) {
         isActive: false,
         benchPosition: position,
       };
-      setBenchPokemon(player, position, instance);
+      // Use targetPlayer for bench placement (opponent when dragging from opponent hand)
+      setBenchPokemon(targetPlayer, position, instance);
       
-      // Si vino de la mano, removerlo de ahí
-      if (fromHand === 'opponent' && card.instanceId) {
-        const newHand = opponentState.hand.filter((_: any, i: number) => i !== card.handIndex);
+      // Si vino de la mano del oponente, removerlo de ahí
+      if (fromHand === 'opponent' && handIndex >= 0) {
+        const newHand = opponentState.hand.filter((_: any, i: number) => i !== handIndex);
         setHand('player2', newHand);
       }
     }
   };
 
-  const handleDropToActive = (e: React.DragEvent) => {
+  const handleDropToActive = (e: React.DragEvent, targetPlayer: 'player1' | 'player2' = 'player1') => {
     e.preventDefault();
     const cardData = e.dataTransfer.getData('card');
-    if (!cardData && playerState.active) return;
+    if (!cardData) return;
     
     const card = JSON.parse(cardData);
     const fromHand = e.dataTransfer.getData('fromHand');
+    const handIndex = parseInt(e.dataTransfer.getData('handIndex') || '-1');
     
     // Es un Pokémon de la mano del oponente
     if (card.hp && (card.stage || card.retreatCost)) {
@@ -156,11 +159,12 @@ export function BattleField({ player, isCurrentPlayer = false }: Props) {
         damage: 0,
         isActive: true,
       };
-      setActivePokemon(player, instance);
+      // Use targetPlayer for active placement (opponent when dragging from opponent hand)
+      setActivePokemon(targetPlayer, instance);
       
-      // Si vino de la mano, removerlo de ahí
-      if (fromHand === 'opponent' && card.instanceId) {
-        const newHand = opponentState.hand.filter((_: any, i: number) => i !== card.handIndex);
+      // Si vino de la mano del oponente, removerlo de ahí
+      if (fromHand === 'opponent' && handIndex >= 0) {
+        const newHand = opponentState.hand.filter((_: any, i: number) => i !== handIndex);
         setHand('player2', newHand);
       }
     }
@@ -180,7 +184,7 @@ export function BattleField({ player, isCurrentPlayer = false }: Props) {
           <div 
             key={`bench-${i}`} 
             className="bench-slot"
-            onDrop={(e) => handleDropToBench(e, i)}
+            onDrop={(e) => handleDropToBench(e, i, 'player2')}
             onDragOver={handleDragOver}
           >
             {opponentState.bench[i] ? (
@@ -201,7 +205,7 @@ export function BattleField({ player, isCurrentPlayer = false }: Props) {
         ) : (
           <div 
             className="empty-slot"
-            onDrop={handleDropToActive}
+            onDrop={(e) => handleDropToActive(e, 'player2')}
             onDragOver={handleDragOver}
           >
             Arrastra Pokémon

@@ -36,6 +36,13 @@ function App() {
     e.dataTransfer.setData('card', JSON.stringify(card));
   };
   
+  // Drag from opponent hand
+  const handleDragStartOpponent = (e: React.DragEvent, card: any, index: number) => {
+    e.dataTransfer.setData('card', JSON.stringify(card));
+    e.dataTransfer.setData('fromHand', 'opponent');
+    e.dataTransfer.setData('handIndex', index.toString());
+  };
+  
   const handleDropToHand = (e: React.DragEvent) => {
     e.preventDefault();
     const cardData = e.dataTransfer.getData('card');
@@ -211,7 +218,12 @@ function App() {
               <div className="hand-cards opponent-hand">
                 {opponentHand.length > 0 ? (
                   opponentHand.map((c: any, i) => (
-                    <div key={i} className="hand-card opponent-card">
+                    <div 
+                      key={i} 
+                      className="hand-card opponent-card draggable"
+                      draggable
+                      onDragStart={(e) => handleDragStartOpponent(e, c, i)}
+                    >
                       {'hp' in c ? (
                         <>
                           <span className="card-type-indicator opponent-type"></span>
