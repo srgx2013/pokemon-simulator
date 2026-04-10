@@ -51,7 +51,9 @@ function App() {
     const cardData = e.dataTransfer.getData('card');
     if (cardData) {
       const card = JSON.parse(cardData);
-      const cardWithId = { ...card, id: uuidv4() };
+      // If card already has an id (from active/bench), preserve it; otherwise create new one
+      const existingId = card.card?.id || card.id;
+      const cardWithId = { ...card, id: existingId || uuidv4() };
       addToHand('player1', [cardWithId]);
     }
   };
