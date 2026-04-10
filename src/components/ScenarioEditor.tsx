@@ -174,6 +174,40 @@ export function ScenarioEditor({ player }: Props) {
     setFilterText('');
   };
   
+  const fillRemainingDeck = () => {
+    if (!selectedDeck) return;
+    
+    // Get all cards that are already used
+    const usedCards = new Set<string>();
+    
+    // Add prizes
+    playerState.prizes.forEach(c => usedCards.add(c.name));
+    // Add hand
+    playerState.hand.forEach(c => usedCards.add(c.name));
+    // Add discard
+    playerState.discardPile.forEach(c => usedCards.add(c.name));
+    // Add active
+    if (playerState.active) usedCards.add(playerState.active.card.name);
+    // Add bench
+    playerState.bench.forEach(p => {
+      if (p) usedCards.add(p.card.name);
+    });
+    
+    // Get remaining cards from deck
+    const remaining = [
+      ...selectedDeck.pokemon.filter(c => !usedCards.has(c.name)),
+      ...selectedDeck.trainers.filter(c => !usedCards.has(c.name)),
+      ...(selectedDeck.energies || []).flatMap(e => 
+        Array(e.quantity).fill({ name: e.type + ' Energy', type: 'energy', energyType: e.type })
+          .filter(c => !usedCards.has(c.name))
+      ),
+    ];
+    
+    // Add IDs and set to deck
+    const deckWithIds = remaining.map(c => ({ ...c, id: uuidv4() }));
+    setDeck(player, deckWithIds);
+  };
+  
   const renderCardList = (cards: any[], target: 'hand' | 'discard' | 'prizes') => (
     <div className="card-list">
       {cards.length === 0 ? (
@@ -211,7 +245,12 @@ export function ScenarioEditor({ player }: Props) {
     <div className="scenario-editor">
       <div className="editor-header">
         <h4>✏️ Editor {playerLabel}</h4>
-        <button onClick={() => setShowEditor(false)} className="close-btn">✕</button>
+        <div className="header-actions">
+          <button className="fill-deck-btn" onClick={fillRemainingDeck} title="Completar deck con cartas restantes">
+            🎯 Completar Deck
+          </button>
+          <button onClick={() => setShowEditor(false)} className="close-btn">✕</button>
+        </div>
       </div>
       
       <div className="editor-tabs">

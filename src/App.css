@@ -1670,12 +1670,34 @@ body {
   margin: 0;
 }
 
+.editor-header .header-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 .editor-header .close-btn {
   background: transparent;
   border: none;
   color: var(--text-primary);
   font-size: 1.25rem;
   cursor: pointer;
+}
+
+.fill-deck-btn {
+  padding: 0.4rem 0.75rem;
+  background: linear-gradient(135deg, var(--success) 0%, #22c55e 100%);
+  border: none;
+  border-radius: 6px;
+  color: #000;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.fill-deck-btn:hover {
+  filter: brightness(1.1);
 }
 
 .editor-tabs {
