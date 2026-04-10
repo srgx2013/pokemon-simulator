@@ -14,6 +14,7 @@ export function ScenarioEditor({ player }: Props) {
   const [newCardText, setNewCardText] = useState('');
   const [filterText, setFilterText] = useState('');
   const [pokemonPickerTarget, setPokemonPickerTarget] = useState<{type: 'active' | 'bench', position?: number} | null>(null);
+  const [cardPickerTarget, setCardPickerTarget] = useState<'hand' | 'prizes' | 'discard' | 'deck' | null>(null);
   
   const gameState = useGameStore(state => state.gameState);
   const setActivePokemon = useGameStore(state => state.setActivePokemon);
@@ -36,6 +37,17 @@ export function ScenarioEditor({ player }: Props) {
   // Get only pokemon from the selected deck
   const deckPokemon = selectedDeck ? selectedDeck.pokemon : [];
   
+  // Get all cards (pokemon + trainers + energies) from deck
+  const deckCards = selectedDeck 
+    ? [
+        ...selectedDeck.pokemon.map(c => ({ ...c, category: 'pokemon' })),
+        ...selectedDeck.trainers.map(c => ({ ...c, category: 'trainer' })),
+        ...(selectedDeck.energies || []).flatMap(e => 
+          Array(e.quantity).fill({ name: e.type + ' Energy', type: 'energy', energyType: e.type, category: 'energy' })
+        ),
+      ]
+    : [];
+  
   // Get available cards from the selected deck
   const availableCards = selectedDeck 
     ? [
@@ -50,6 +62,13 @@ export function ScenarioEditor({ player }: Props) {
   const addCardFromPicker = (card: any, target: 'hand' | 'discard' | 'prizes' | 'deck') => {
     const cardWithId = { ...card, id: uuidv4() };
     addCards([cardWithId], target);
+    setCardPickerTarget(null);
+    setFilterText('');
+  };
+  
+  const openCardPicker = (target: 'hand' | 'prizes' | 'discard' | 'deck') => {
+    setCardPickerTarget(target);
+    setFilterText('');
   };
   
   const parseCardName = (text: string) => {
@@ -244,6 +263,9 @@ export function ScenarioEditor({ player }: Props) {
           <div className="editor-section">
             <h5>🎯 Prizes ({playerState.prizes.length})</h5>
             {renderCardList(playerState.prizes, 'prizes')}
+            <button className="pick-from-deck-btn" onClick={() => openCardPicker('prizes')}>
+              📋 Elegir del Deck
+            </button>
             <div className="add-cards">
               <textarea
                 value={newCardText}
@@ -260,6 +282,9 @@ export function ScenarioEditor({ player }: Props) {
           <div className="editor-section">
             <h5>🃏 Mano ({playerState.hand.length})</h5>
             {renderCardList(playerState.hand, 'hand')}
+            <button className="pick-from-deck-btn" onClick={() => openCardPicker('hand')}>
+              📋 Elegir del Deck
+            </button>
             <div className="add-cards">
               <textarea
                 value={newCardText}
@@ -276,6 +301,9 @@ export function ScenarioEditor({ player }: Props) {
           <div className="editor-section">
             <h5>🗑️ Descarte ({playerState.discardPile.length})</h5>
             {renderCardList(playerState.discardPile, 'discard')}
+            <button className="pick-from-deck-btn" onClick={() => openCardPicker('discard')}>
+              📋 Elegir del Deck
+            </button>
             <div className="add-cards">
               <textarea
                 value={newCardText}
@@ -292,6 +320,9 @@ export function ScenarioEditor({ player }: Props) {
           <div className="editor-section">
             <h5>📚 Deck ({playerState.deck.length})</h5>
             {renderDeckList(playerState.deck)}
+            <button className="pick-from-deck-btn" onClick={() => openCardPicker('deck')}>
+              📋 Elegir del Deck
+            </button>
             <div className="add-cards">
               <textarea
                 value={newCardText}
@@ -424,6 +455,35 @@ export function ScenarioEditor({ player }: Props) {
                 <button className="close-picker-btn" onClick={() => setPokemonPickerTarget(null)}>✕ Cerrar</button>
               </div>
             )}
+          </div>
+        )}
+        
+        {/* Card Picker Modal - for hand, prizes, discard, deck */}
+        {cardPickerTarget && (
+          <div className="card-picker-modal-wide">
+            <h5>
+              📋 Elegir Carta - {cardPickerTarget === 'hand' ? 'Mano' : 
+              cardPickerTarget === 'prizes' ? 'Prizes' : 
+              cardPickerTarget === 'discard' ? 'Descarte' : 'Deck'}
+            </h5>
+            <input
+              type="text"
+              placeholder="Buscar carta..."
+              value={filterText}
+              onChange={e => setFilterText(e.target.value)}
+              className="card-filter-input"
+            />
+            <div className="card-picker-list">
+              {deckCards
+                .filter(c => !filterText || c.name.toLowerCase().includes(filterText.toLowerCase()))
+                .map((card, i) => (
+                  <div key={i} className="card-picker-option" onClick={() => addCardFromPicker(card, cardPickerTarget)}>
+                    <span className="card-picker-name">{card.name}</span>
+                    <span className="card-picker-type">{card.category || 'pokemon'}</span>
+                  </div>
+                ))}
+            </div>
+            <button className="close-picker-btn" onClick={() => setCardPickerTarget(null)}>✕ Cerrar</button>
           </div>
         )}
       </div>

@@ -2076,3 +2076,63 @@ body {
   font-size: 0.75rem;
   cursor: pointer;
 }
+
+/* Card Picker Modal Wide */
+.card-picker-modal-wide {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  background: var(--secondary);
+  border: 2px solid var(--accent);
+  border-radius: 12px;
+  padding: 1rem;
+  z-index: 200;
+  overflow-y: auto;
+}
+
+.card-picker-modal-wide h5 {
+  margin: 0 0 0.75rem 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.card-picker-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.5rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.card-picker-option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  background: var(--primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.card-picker-option:hover {
+  border-color: var(--accent);
+  background: rgba(233, 69, 96, 0.1);
+}
+
+.card-picker-name {
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+}
+
+.card-picker-type {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
