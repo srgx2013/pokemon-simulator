@@ -48,16 +48,18 @@ export function ScenarioEditor({ player }: Props) {
       ]
     : [];
   
-  // Get available cards from the selected deck
-  const availableCards = selectedDeck 
-    ? [
-        ...selectedDeck.pokemon.map(c => ({ ...c, category: 'pokemon' })),
-        ...selectedDeck.trainers.map(c => ({ ...c, category: 'trainer' })),
-        ...(selectedDeck.energies || []).flatMap(e => 
-          Array(e.quantity).fill({ name: e.type + ' Energy', type: 'energy', energyType: e.type, category: 'energy' })
-        ),
-      ]
-    : [];
+  // Get names of all used cards (prizes, hand, discard, active, bench)
+  const usedCardNames = new Set<string>();
+  playerState.prizes.forEach(c => usedCardNames.add(c.name));
+  playerState.hand.forEach(c => usedCardNames.add(c.name));
+  playerState.discardPile.forEach(c => usedCardNames.add(c.name));
+  if (playerState.active) usedCardNames.add(playerState.active.card.name);
+  playerState.bench.forEach(p => {
+    if (p) usedCardNames.add(p.card.name);
+  });
+  
+  // Filter available cards (exclude used ones, useful for pickers)
+  const availableCards = deckCards.filter(c => !usedCardNames.has(c.name));
   
   const addCardFromPicker = (card: any, target: 'hand' | 'discard' | 'prizes' | 'deck') => {
     const cardWithId = { ...card, id: uuidv4() };
@@ -513,7 +515,7 @@ export function ScenarioEditor({ player }: Props) {
               className="card-filter-input"
             />
             <div className="card-picker-list">
-              {deckCards
+              {availableCards
                 .filter(c => !filterText || c.name.toLowerCase().includes(filterText.toLowerCase()))
                 .map((card, i) => (
                   <div key={i} className="card-picker-option" onClick={() => addCardFromPicker(card, cardPickerTarget)}>
