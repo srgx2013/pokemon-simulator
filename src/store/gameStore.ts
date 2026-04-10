@@ -23,6 +23,8 @@ interface GameStore {
   setPlayer1Deck: (deck: DeckPreset | null) => void;
   setPlayer2Deck: (deck: DeckPreset | null) => void;
   startGame: () => void;
+  checkMulligan: (player: 'player1' | 'player2') => boolean;
+  processMulligan: (player: 'player1' | 'player2') => void;
   setCurrentPlayer: (player: 'player1' | 'player2') => void;
   nextPhase: () => void;
   incrementTurn: () => void;
@@ -66,6 +68,10 @@ const createInitialGameState = (): GameState => ({
   turn: 1,
   phase: 'setup',
   logs: [],
+  mulligan: {
+    player1: false,
+    player2: false,
+  },
 });
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -78,6 +84,43 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   setPlayer1Deck: (deck) => set({ player1Deck: deck }),
   setPlayer2Deck: (deck) => set({ player2Deck: deck }),
+  
+  // Helper to check if hand has basic Pokemon
+  checkMulligan: (player: 'player1' | 'player2') => {
+    const state = get().gameState;
+    const playerHand = player === 'player1' ? state.player1.hand : state.player2.hand;
+    const hasBasic = playerHand.some((c: any) => c && typeof c === 'object' && 'hp' in c && c.stage === 'basic');
+    return !hasBasic;
+  },
+  
+  // Process mulligan - shuffle hand back into deck and draw new hand
+  processMulligan: (player: 'player1' | 'player2') => {
+    const state = get().gameState;
+    const playerData = player === 'player1' ? state.player1 : state.player2;
+    
+    // Combine hand + deck
+    const allCards = [...playerData.hand, ...playerData.deck];
+    const shuffled = [...allCards].sort(() => Math.random() - 0.5);
+    
+    // Draw 7 new cards
+    const newHand = shuffled.slice(0, 7);
+    const newDeck = shuffled.slice(7);
+    
+    set({
+      gameState: {
+        ...state,
+        [player]: {
+          ...playerData,
+          hand: newHand,
+          deck: newDeck,
+        },
+        mulligan: {
+          ...state.mulligan,
+          [player]: true,
+        },
+      },
+    });
+  },
   
   startGame: () => {
     const { player1Deck, player2Deck } = get();
@@ -127,6 +170,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
         phase: 'turn',
         currentPlayer: 'player1',
         turn: 1,
+        mulligan: {
+          player1: false,
+          player2: false,
+        },
       }
     });
   },

@@ -13,7 +13,7 @@ interface Props {
 export function BattleField({ player, isCurrentPlayer = false }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedCard, setSelectedCard] = useState<PokemonCardType | null>(null);
-  const [showOpponentHand, setShowOpponentHand] = useState(false);
+  // Note: showOpponentHand moved to App.tsx for better layout
   
   const gameState = useGameStore(state => state.gameState);
   const setActivePokemon = useGameStore(state => state.setActivePokemon);
@@ -22,7 +22,6 @@ export function BattleField({ player, isCurrentPlayer = false }: Props) {
   const addEnergy = useGameStore(state => state.addEnergy);
   const removeEnergy = useGameStore(state => state.removeEnergy);
   const setStatus = useGameStore(state => state.setStatus);
-  const drawCards = useGameStore(state => state.drawCards);
   const setHand = useGameStore(state => state.setHand);
   
   const playerState = player === 'player1' ? gameState.player1 : gameState.player2;
@@ -66,22 +65,21 @@ export function BattleField({ player, isCurrentPlayer = false }: Props) {
     setStatus(player, id, status);
   };
 
+  // Note: Opponent hand controls moved to App.tsx for better layout
+  // These functions can be re-enabled if needed for special scenarios
+  /*
   const handleDrawOpponentCards = (count: number) => {
     drawCards('player2', count);
   };
 
   const handleSetOpponentHand = () => {
-    const text = prompt('Pegar lista de cartas para la mano del oponente (una por línea):\nEj:\n4 Dreepy TWM 128\n2 Iono\n3 Psychic Energy');
-    if (text) {
-      const { pokemon, trainers, energies } = parseDeckList(text);
-      const allCards = [
-        ...pokemon.map(p => ({ ...p, id: uuidv4() })),
-        ...trainers.map(t => ({ type: 'trainer', ...t, id: uuidv4() })),
-        ...energies.map(e => ({ type: 'energy', energyType: e.type, quantity: e.quantity, id: uuidv4() })),
-      ];
-      setHand('player2', allCards);
-    }
+    // ...
   };
+
+  const handleDragStartFromOpponentHand = (e: React.DragEvent, card: any) => {
+    // ...
+  };
+  */
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -90,31 +88,40 @@ export function BattleField({ player, isCurrentPlayer = false }: Props) {
   const handleDropToBench = (e: React.DragEvent, position: number) => {
     e.preventDefault();
     const cardData = e.dataTransfer.getData('card');
-    if (cardData) {
-      const card = JSON.parse(cardData);
-      if (card.hp && (card.stage || card.retreatCost)) {
-        const pokemonCard: PokemonCardType = {
-          id: uuidv4(),
-          name: card.name || card.card?.name,
-          stage: card.stage || 'basic',
-          hp: card.hp || card.card?.hp || 100,
-          type: card.type || card.card?.type || 'psychic',
-          attacks: card.attacks || [],
-          weakness: card.weakness,
-          retreatCost: card.retreatCost || 1,
-          rarity: card.rarity || 'common',
-        };
-        const instance: PokemonInstance = {
-          id: uuidv4(),
-          card: pokemonCard,
-          currentHp: pokemonCard.hp,
-          attachedEnergy: [],
-          status: 'none',
-          damage: 0,
-          isActive: false,
-          benchPosition: position,
-        };
-        setBenchPokemon(player, position, instance);
+    if (!cardData) return;
+    
+    const card = JSON.parse(cardData);
+    const fromHand = e.dataTransfer.getData('fromHand');
+    
+    // Es un Pokémon de la mano del oponente
+    if (card.hp && (card.stage || card.retreatCost)) {
+      const pokemonCard: PokemonCardType = {
+        id: uuidv4(),
+        name: card.name || card.card?.name,
+        stage: card.stage || 'basic',
+        hp: card.hp || card.card?.hp || 100,
+        type: card.type || card.card?.type || 'psychic',
+        attacks: card.attacks || [],
+        weakness: card.weakness,
+        retreatCost: card.retreatCost || 1,
+        rarity: card.rarity || 'common',
+      };
+      const instance: PokemonInstance = {
+        id: uuidv4(),
+        card: pokemonCard,
+        currentHp: pokemonCard.hp,
+        attachedEnergy: [],
+        status: 'none',
+        damage: 0,
+        isActive: false,
+        benchPosition: position,
+      };
+      setBenchPokemon(player, position, instance);
+      
+      // Si vino de la mano, removerlo de ahí
+      if (fromHand === 'opponent' && card.instanceId) {
+        const newHand = opponentState.hand.filter((_: any, i: number) => i !== card.handIndex);
+        setHand('player2', newHand);
       }
     }
   };
@@ -122,99 +129,84 @@ export function BattleField({ player, isCurrentPlayer = false }: Props) {
   const handleDropToActive = (e: React.DragEvent) => {
     e.preventDefault();
     const cardData = e.dataTransfer.getData('card');
-    if (cardData && !playerState.active) {
-      const card = JSON.parse(cardData);
-      if (card.hp && (card.stage || card.retreatCost)) {
-        const pokemonCard: PokemonCardType = {
-          id: uuidv4(),
-          name: card.name || card.card?.name,
-          stage: card.stage || 'basic',
-          hp: card.hp || card.card?.hp || 100,
-          type: card.type || card.card?.type || 'psychic',
-          attacks: card.attacks || [],
-          weakness: card.weakness,
-          retreatCost: card.retreatCost || 1,
-          rarity: card.rarity || 'common',
-        };
-        const instance: PokemonInstance = {
-          id: uuidv4(),
-          card: pokemonCard,
-          currentHp: pokemonCard.hp,
-          attachedEnergy: [],
-          status: 'none',
-          damage: 0,
-          isActive: true,
-        };
-        setActivePokemon(player, instance);
+    if (!cardData && playerState.active) return;
+    
+    const card = JSON.parse(cardData);
+    const fromHand = e.dataTransfer.getData('fromHand');
+    
+    // Es un Pokémon de la mano del oponente
+    if (card.hp && (card.stage || card.retreatCost)) {
+      const pokemonCard: PokemonCardType = {
+        id: uuidv4(),
+        name: card.name || card.card?.name,
+        stage: card.stage || 'basic',
+        hp: card.hp || card.card?.hp || 100,
+        type: card.type || card.card?.type || 'psychic',
+        attacks: card.attacks || [],
+        weakness: card.weakness,
+        retreatCost: card.retreatCost || 1,
+        rarity: card.rarity || 'common',
+      };
+      const instance: PokemonInstance = {
+        id: uuidv4(),
+        card: pokemonCard,
+        currentHp: pokemonCard.hp,
+        attachedEnergy: [],
+        status: 'none',
+        damage: 0,
+        isActive: true,
+      };
+      setActivePokemon(player, instance);
+      
+      // Si vino de la mano, removerlo de ahí
+      if (fromHand === 'opponent' && card.instanceId) {
+        const newHand = opponentState.hand.filter((_: any, i: number) => i !== card.handIndex);
+        setHand('player2', newHand);
       }
     }
   };
 
   return (
     <div className={`battle-field ${isCurrentPlayer ? 'current' : ''}`}>
-      <div className="player-section opponent">
-        <h4>🎯 {player === 'player1' ? 'Oponente' : 'Tú'}</h4>
-        
-        <div className="opponent-hand-section">
-          <div className="opponent-hand-header" onClick={() => setShowOpponentHand(!showOpponentHand)}>
-            <span>📤 Mano ({opponentState.hand.length})</span>
-            <span className="toggle-arrow">{showOpponentHand ? '▼' : '▶'}</span>
+      {/* La mano del oponente ahora se muestra en App.tsx (panel derecho) */}
+      
+      <div className="prizes">
+        <span className="prize-label">Prizes: {opponentState.prizes.length}</span>
+      </div>
+
+      {/* Oponente - Bench primero (abajo), luego Active (arriba) */}
+      <div className="opponent-bench">
+        {[0, 1, 2, 3, 4].map(i => (
+          <div 
+            key={`bench-${i}`} 
+            className="bench-slot"
+            onDrop={(e) => handleDropToBench(e, i)}
+            onDragOver={handleDragOver}
+          >
+            {opponentState.bench[i] ? (
+              <PokemonCard pokemon={opponentState.bench[i]!} />
+            ) : (
+              <div className="empty-slot">+</div>
+            )}
           </div>
-          {showOpponentHand && (
-            <div className="opponent-hand-controls">
-              <button onClick={() => handleDrawOpponentCards(1)}>+1</button>
-              <button onClick={() => handleDrawOpponentCards(3)}>+3</button>
-              <button onClick={handleSetOpponentHand}>Importar</button>
-            </div>
-          )}
-          {showOpponentHand && opponentState.hand.length > 0 && (
-            <div className="opponent-hand-cards">
-              {opponentState.hand.map((c: any, i) => (
-                <div key={i} className="card-item opponent-card">
-                  {'hp' in c ? '⚔️' : '🔧'}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        
-        <div className="prizes">
-          <span className="prize-label">Prizes: {opponentState.prizes.length}</span>
-        </div>
+        ))}
+      </div>
 
-        <div className="opponent-active">
-          {opponentState.active ? (
-            <PokemonCard 
-              pokemon={opponentState.active} 
-              showDetails
-            />
-          ) : (
-            <div 
-              className="empty-slot"
-              onDrop={handleDropToActive}
-              onDragOver={handleDragOver}
-            >
-              Arrastra Pokémon
-            </div>
-          )}
-        </div>
-
-        <div className="opponent-bench">
-          {[0, 1, 2, 3, 4].map(i => (
-            <div 
-              key={i} 
-              className="bench-slot"
-              onDrop={(e) => handleDropToBench(e, i)}
-              onDragOver={handleDragOver}
-            >
-              {opponentState.bench[i] ? (
-                <PokemonCard pokemon={opponentState.bench[i]!} />
-              ) : (
-                <div className="empty-slot">+</div>
-              )}
-            </div>
-          ))}
-        </div>
+      <div className="opponent-active">
+        {opponentState.active ? (
+          <PokemonCard 
+            pokemon={opponentState.active} 
+            showDetails
+          />
+        ) : (
+          <div 
+            className="empty-slot"
+            onDrop={handleDropToActive}
+            onDragOver={handleDragOver}
+          >
+            Arrastra Pokémon
+          </div>
+        )}
       </div>
 
       <div className="player-section you">
@@ -345,15 +337,14 @@ export function BattleField({ player, isCurrentPlayer = false }: Props) {
 export function DeckSelector() {
   const [showDeck, setShowDeck] = useState(false);
   const [importText, setImportText] = useState('');
-  const initializeGame = useGameStore(state => state.initializeGame);
   const customDecks = useGameStore(state => state.customDecks);
-  const addCustomDeck = useGameStore(state => state.addCustomDeck);
   const loadCustomDecks = useGameStore(state => state.loadCustomDecks);
   const player1Deck = useGameStore(state => state.player1Deck);
   const player2Deck = useGameStore(state => state.player2Deck);
   const setPlayer1Deck = useGameStore(state => state.setPlayer1Deck);
   const setPlayer2Deck = useGameStore(state => state.setPlayer2Deck);
   const startGame = useGameStore(state => state.startGame);
+  // Note: gameState can be used in the future for mulligan checking during deck selection
   
   const handleOpenDeckModal = () => {
     loadCustomDecks();
@@ -374,28 +365,28 @@ export function DeckSelector() {
       setShowDeck(false);
     }
   };
-
+  
   const handleImport = () => {
     if (!importText.trim()) return;
     const { pokemon, trainers, energies } = parseDeckList(importText);
-    //console.log('Parsed:', { pokemon: pokemon.length, trainers: trainers.length, energies: energies.length });
     if (pokemon.length > 0) {
       const deckName = prompt('Nombre del mazo:') || 'Mazo Personalizado';
       const newDeck = {
+        id: uuidv4(),
         name: deckName,
         description: 'Mazo importado',
         pokemon,
         trainers,
         energies,
       };
-      addCustomDeck(newDeck);
-      const pokemonWithIds = pokemon.map(p => ({ ...p, id: uuidv4() }));
-      initializeGame(pokemonWithIds, trainers, energies);
-      setShowDeck(false);
+      // Use setPlayer1Deck instead of addCustomDeck
+      setPlayer1Deck(newDeck);
+      setPlayer2Deck(null);
       setImportText('');
     }
   };
   
+  // Render
   return (
     <div className="deck-selector">
       <button className="select-deck-btn" onClick={handleOpenDeckModal}>

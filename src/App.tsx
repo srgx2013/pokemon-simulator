@@ -2,13 +2,7 @@ import { useState } from 'react';
 import { useGameStore } from './store/gameStore';
 import { BattleField, DeckSelector } from './components/BattleField';
 import { AIPanel } from './components/AIPanel';
-import { energyColors } from './data/decks';
-import type { EnergyType } from './types';
 import { v4 as uuidv4 } from 'uuid';
-
-const getEnergyColor = (type: string): string => {
-  return energyColors[type as EnergyType] || '#888';
-};
 
 function App() {
   const gameState = useGameStore(state => state.gameState);
@@ -23,13 +17,13 @@ function App() {
   const playerEnergies = gameState.player1.deck.filter((c): c is any => c && typeof c === 'object' && ((c as any).type === 'energy' || (c as any).energyType));
   const playerPrizes = gameState.player1.prizes;
   const playerHand = gameState.player1.hand;
+  const playerDiscard = gameState.player1.discardPile;
   
   // Player 2 (Oponente)
-  const opponentDeck = gameState.player2.deck.filter((c): c is any => c && typeof c === 'object' && 'hp' in c);
-  const opponentTrainers = gameState.player2.deck.filter((c): c is any => c && typeof c === 'object' && !('hp' in c) && (c as any).type !== 'energy');
-  const opponentEnergies = gameState.player2.deck.filter((c): c is any => c && typeof c === 'object' && ((c as any).type === 'energy' || (c as any).energyType));
+  const opponentDeck = gameState.player2.deck;
   const opponentPrizes = gameState.player2.prizes;
   const opponentHand = gameState.player2.hand;
+  const opponentDiscard = gameState.player2.discardPile;
   
   const drawCards = useGameStore(state => state.drawCards);
   const addToHand = useGameStore(state => state.addToHand);
@@ -63,6 +57,11 @@ function App() {
       alert('Escenario guardado!');
     }
   };
+  
+  const handleMulligan = (player: 'player1' | 'player2') => {
+    const storeMulligan = useGameStore.getState().processMulligan;
+    storeMulligan(player);
+  };
 
   return (
     <div className="app">
@@ -76,164 +75,177 @@ function App() {
       </header>
 
       <main className="main">
-        <div className="decks-container">
-          <aside className="left-panel player1-panel">
-            <h2>🎯 Jugador 1 (Tú)</h2>
-            <div className="deck-sections">
-              <section className="deck-section">
-                <h3>Pokemon ({playerDeck.length})</h3>
-                <div className="card-list">
-                  {playerDeck.length > 0 ? (
-                    playerDeck.map((p, i) => (
-                      <div 
-                        key={`p1-poke-${i}`} 
-                        className="card-item"
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, p)}
-                      >
-                        <span className={`rarity ${p.rarity}`}>{p.rarity?.[0]?.toUpperCase() || 'C'}</span>
-                        <span>{p.name}</span>
-                        <span className="hp">{p.hp} HP</span>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="no-cards">Sin cartas</div>
-                  )}
-                </div>
-              </section>
-
-              <section className="deck-section">
-                <h3>Trainers ({playerTrainers.length})</h3>
-                <div className="card-list">
-                  {playerTrainers.length > 0 ? (
-                    playerTrainers.map((t, i) => (
-                      <div 
-                        key={`p1-trainer-${i}`} 
-                        className="card-item trainer-card"
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, t)}
-                      >
-                        <span className={`card-type ${t.type}`}>{t.type?.[0]?.toUpperCase() || 'T'}</span>
-                        <span>{t.name}</span>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="no-cards">Sin trainers</div>
-                  )}
-                </div>
-              </section>
-
-              <section className="deck-section">
-                <h3>Energies ({playerEnergies.length})</h3>
-                <div className="card-list">
-                  {playerEnergies.length > 0 ? (
-                    playerEnergies.map((e: any, i) => (
-                      <div 
-                        key={`p1-energy-${i}`} 
-                        className="card-item energy-card"
-                        draggable
-                        onDragStart={(ev) => handleDragStart(ev, { type: 'energy', energyType: e.energyType || e.type })}
-                      >
-                        <span className="energy-dot" style={{ background: getEnergyColor(e.energyType || e.type) }}></span>
-                        <span>{e.energyType || e.type}</span>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="no-cards">Sin energias</div>
-                  )}
-                </div>
-              </section>
-
-              <section className="deck-section">
-                <h3>Prizes ({playerPrizes.length})</h3>
-                <div className="card-list">
-                  {playerPrizes.length > 0 ? (
-                    playerPrizes.map((c: any, i) => (
-                      <div key={`p1-prize-${i}`} className="card-item">
-                        {'hp' in c ? <span>{c.name}</span> : <span>⚡</span>}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="no-cards">Sin prizes</div>
-                  )}
-                </div>
-              </section>
-
-              <section className="deck-section">
-                <h3>Mano ({playerHand.length})</h3>
-                <div 
-                  className="hand-controls"
-                  onDrop={handleDropToHand}
-                  onDragOver={handleDragOver}
-                >
-                  <button onClick={() => handleDrawCards(1)}>+1</button>
-                  <button onClick={() => handleDrawCards(3)}>+3</button>
-                </div>
-                <div 
-                  className="card-list drop-zone"
-                  onDrop={handleDropToHand}
-                  onDragOver={handleDragOver}
-                >
-                  {playerHand.length > 0 ? (
-                    playerHand.map((c: any, i) => (
-                      <div key={`p1-hand-${i}`} className="card-item">
-                        {'hp' in c ? <span>{c.name}</span> : 'energyType' in c ? <span>⚡</span> : <span>🔧</span>}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="no-cards">Sin mano</div>
-                  )}
-                </div>
-              </section>
+        {/* PRIZES - Ambos jugadores */}
+        <div className="prizes-section">
+          <div className="prizes-player">
+            <span className="prizes-label">🎯 Tus Prizes</span>
+            <div className="prizes-cards">
+              {playerPrizes.length > 0 ? (
+                playerPrizes.slice(0, 6).map((_: any, i) => (
+                  <div key={i} className="prize-card-face-down">★</div>
+                ))
+              ) : (
+                <>
+                  {[0,1,2,3,4,5].map(i => (
+                    <div key={i} className="prize-card-empty"></div>
+                  ))}
+                </>
+              )}
             </div>
-          </aside>
-
-          <aside className="right-panel player2-panel">
-            <h2>⚔️ Jugador 2 (Oponente)</h2>
-            <div className="deck-sections">
-              <section className="deck-section">
-                <h3>Deck ({opponentDeck.length + opponentTrainers.length + opponentEnergies.length})</h3>
-                <div className="card-list">
-                  <div className="no-cards">{opponentDeck.length} Pokemon, {opponentTrainers.length} Trainers, {opponentEnergies.length} Energies</div>
-                </div>
-              </section>
-
-              <section className="deck-section">
-                <h3>Prizes ({opponentPrizes.length})</h3>
-                <div className="card-list">
-                  {opponentPrizes.length > 0 ? (
-                    opponentPrizes.map((c: any, i) => (
-                      <div key={`p2-prize-${i}`} className="card-item">
-                        {'hp' in c ? <span>{c.name}</span> : <span>⚡</span>}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="no-cards">Sin prizes</div>
-                  )}
-                </div>
-              </section>
-
-              <section className="deck-section">
-                <h3>Mano ({opponentHand.length})</h3>
-                <div className="card-list">
-                  {opponentHand.length > 0 ? (
-                    opponentHand.map((_: any, i) => (
-                      <div key={`p2-hand-${i}`} className="card-item opponent-card">
-                        <span>🃏</span>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="no-cards">Sin mano</div>
-                  )}
-                </div>
-              </section>
+            <span className="prize-count">{playerPrizes.length}/6</span>
+          </div>
+          
+          <div className="prizes-center">
+            <span className="vs-badge">VS</span>
+          </div>
+          
+          <div className="prizes-player opponent">
+            <span className="prizes-label">⚔️ Prizes Rival</span>
+            <div className="prizes-cards">
+              {opponentPrizes.length > 0 ? (
+                opponentPrizes.slice(0, 6).map((_: any, i) => (
+                  <div key={i} className="prize-card-face-down">★</div>
+                ))
+              ) : (
+                <>
+                  {[0,1,2,3,4,5].map(i => (
+                    <div key={i} className="prize-card-empty"></div>
+                  ))}
+                </>
+              )}
             </div>
-          </aside>
+            <span className="prize-count">{opponentPrizes.length}/6</span>
+          </div>
         </div>
 
-        <div className="center-area">
-          <BattleField player="player1" isCurrentPlayer={gameState.currentPlayer === 'player1'} />
-          <AIPanel />
+        {/* PLAY AREA - Deck, Play Zone, Discard */}
+        <div className="play-area">
+          {/* PLAYER 1 ZONE */}
+          <div className="player-zone">
+            {/* Deck */}
+            <div className="zone-column deck-zone">
+              <div className="zone-header">📚 DECK</div>
+              <div className="deck-count">
+                <span className="count-number">{playerDeck.length + playerTrainers.length + playerEnergies.length}</span>
+                <span className="count-label">cartas</span>
+              </div>
+              <div className="deck-actions">
+                <button onClick={() => handleDrawCards(1)}>+1</button>
+                <button onClick={() => handleDrawCards(3)}>+3</button>
+              </div>
+            </div>
+
+            {/* Hand */}
+            <div className="zone-column hand-zone">
+              <div className="zone-header">🃏 MANO</div>
+              <div 
+                className="hand-cards drop-zone"
+                onDrop={handleDropToHand}
+                onDragOver={handleDragOver}
+              >
+                {playerHand.length > 0 ? (
+                  playerHand.map((c: any, i) => (
+                    <div key={i} className="hand-card" draggable onDragStart={(e) => handleDragStart(e, c)}>
+                      {'hp' in c ? (
+                        <>
+                          <span className="card-type-indicator pokemon-type"></span>
+                          <span className="card-name-full">{c.name}</span>
+                          <span className="card-hp">{c.hp}HP</span>
+                        </>
+                      ) : 'energyType' in c ? (
+                        <span className="card-name-full energy-type">{c.energyType || c.type}</span>
+                      ) : (
+                        <span className="card-name-full trainer-type">{c.name}</span>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="empty-zone">Sin cartas</div>
+                )}
+              </div>
+              <span className="hand-count">{playerHand.length} cartas</span>
+              {/* Mulligan button - below hand count */}
+              {playerHand.length > 0 && (
+                <button className="mulligan-btn" onClick={() => handleMulligan('player1')}>
+                  🔄 Mulligan
+                </button>
+              )}
+            </div>
+
+            {/* Discard */}
+            <div className="zone-column discard-zone">
+              <div className="zone-header">🗑️ DISCARD</div>
+              <div className="discard-count">
+                <span className="count-number">{playerDiscard.length}</span>
+              </div>
+              <div className="discard-preview">
+                {playerDiscard.slice(-3).reverse().map((c: any, i) => (
+                  <div key={i} className="discard-card">
+                    {'hp' in c ? c.name?.slice(0, 8) : '⚡'}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* CENTER - Battle Field */}
+          <div className="center-area">
+            <BattleField player="player1" isCurrentPlayer={gameState.currentPlayer === 'player1'} />
+            <AIPanel />
+          </div>
+
+          {/* PLAYER 2 ZONE (Oponente) */}
+          <div className="player-zone opponent">
+            {/* Deck */}
+            <div className="zone-column deck-zone">
+              <div className="zone-header">📚 DECK</div>
+              <div className="deck-count">
+                <span className="count-number">{opponentDeck.length}</span>
+                <span className="count-label">cartas</span>
+              </div>
+            </div>
+
+            {/* Hand */}
+            <div className="zone-column hand-zone">
+              <div className="zone-header">🃏 MANO</div>
+              <div className="hand-cards opponent-hand">
+                {opponentHand.length > 0 ? (
+                  opponentHand.map((c: any, i) => (
+                    <div key={i} className="hand-card opponent-card">
+                      {'hp' in c ? (
+                        <>
+                          <span className="card-type-indicator opponent-type"></span>
+                          <span className="card-name-full opponent-name">{c.name}</span>
+                          <span className="card-hp opponent-hp">{c.hp}HP</span>
+                        </>
+                      ) : 'energyType' in c ? (
+                        <span className="card-name-full energy-type">{c.energyType || c.type}</span>
+                      ) : (
+                        <span className="card-name-full trainer-type">{c.name}</span>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="empty-zone">-</div>
+                )}
+              </div>
+              <span className="hand-count">{opponentHand.length}</span>
+              {/* Mulligan button for opponent - below hand count */}
+              {opponentHand.length > 0 && (
+                <button className="mulligan-btn" onClick={() => handleMulligan('player2')}>
+                  🔄 Mulligan
+                </button>
+              )}
+            </div>
+
+            {/* Discard */}
+            <div className="zone-column discard-zone">
+              <div className="zone-header">🗑️ DISCARD</div>
+              <div className="discard-count">
+                <span className="count-number">{opponentDiscard.length}</span>
+              </div>
+            </div>
+          </div>
         </div>
       </main>
 

@@ -71,6 +71,10 @@ export interface GameState {
   turn: number;
   phase: 'setup' | 'draw' | 'turn' | 'end';
   logs: string[];
+  mulligan: {
+    player1: boolean;
+    player2: boolean;
+  };
 }
 
 export interface Scenario {
