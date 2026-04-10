@@ -13,6 +13,7 @@ export function ScenarioEditor({ player }: Props) {
   const [section, setSection] = useState<EditingSection>('all');
   const [newCardText, setNewCardText] = useState('');
   const [filterText, setFilterText] = useState('');
+  const [pokemonPickerTarget, setPokemonPickerTarget] = useState<{type: 'active' | 'bench', position?: number} | null>(null);
   
   const gameState = useGameStore(state => state.gameState);
   const setActivePokemon = useGameStore(state => state.setActivePokemon);
@@ -31,6 +32,9 @@ export function ScenarioEditor({ player }: Props) {
   const playerState = player === 'player1' ? gameState.player1 : gameState.player2;
   const playerLabel = player === 'player1' ? 'Tú' : 'Oponente';
   const selectedDeck = player === 'player1' ? player1Deck : player2Deck;
+  
+  // Get only pokemon from the selected deck
+  const deckPokemon = selectedDeck ? selectedDeck.pokemon : [];
   
   // Get available cards from the selected deck
   const availableCards = selectedDeck 
@@ -96,6 +100,7 @@ export function ScenarioEditor({ player }: Props) {
   };
   
   const handleSetActive = (card: any) => {
+    if (!card) return;
     const instance = {
       id: uuidv4(),
       card: {
@@ -116,9 +121,11 @@ export function ScenarioEditor({ player }: Props) {
       isActive: true,
     };
     setActivePokemon(player, instance);
+    setPokemonPickerTarget(null);
   };
   
   const handleSetBench = (card: any, position: number) => {
+    if (!card) return;
     const instance = {
       id: uuidv4(),
       card: {
@@ -140,6 +147,12 @@ export function ScenarioEditor({ player }: Props) {
       benchPosition: position,
     };
     setBenchPokemon(player, position, instance);
+    setPokemonPickerTarget(null);
+  };
+  
+  const openPokemonPicker = (type: 'active' | 'bench', position?: number) => {
+    setPokemonPickerTarget({ type, position });
+    setFilterText('');
   };
   
   const renderCardList = (cards: any[], target: 'hand' | 'discard' | 'prizes') => (
@@ -326,15 +339,41 @@ export function ScenarioEditor({ player }: Props) {
             ) : (
               <div className="empty-active">Sin Pokémon activo</div>
             )}
+            <button className="pick-from-deck-btn" onClick={() => openPokemonPicker('active')}>
+              📋 Elegir del Deck
+            </button>
             <div className="add-cards">
               <textarea
                 value={newCardText}
                 onChange={e => setNewCardText(e.target.value)}
-                placeholder="Nombre del Pokémon&#10;Ej: Charizard ex"
+                placeholder="Nombre del Pokémon"
                 rows={2}
               />
-              <button onClick={() => handleSetActive(parseCardName(newCardText))}>+ Set Active</button>
+              <button onClick={() => handleSetActive(parseCardName(newCardText))}>+</button>
             </div>
+            {pokemonPickerTarget?.type === 'active' && (
+              <div className="pokemon-picker-modal">
+                <h5>Seleccionar Pokémon del Deck</h5>
+                <input
+                  type="text"
+                  placeholder="Buscar..."
+                  value={filterText}
+                  onChange={e => setFilterText(e.target.value)}
+                  className="card-filter-input"
+                />
+                <div className="pokemon-picker-list">
+                  {deckPokemon
+                    .filter(p => !filterText || p.name.toLowerCase().includes(filterText.toLowerCase()))
+                    .map((pokemon, i) => (
+                      <div key={i} className="pokemon-picker-item" onClick={() => handleSetActive(pokemon)}>
+                        <span>{pokemon.name}</span>
+                        <span className="pokemon-info">{pokemon.stage} {pokemon.hp}HP</span>
+                      </div>
+                    ))}
+                </div>
+                <button className="close-picker-btn" onClick={() => setPokemonPickerTarget(null)}>✕ Cerrar</button>
+              </div>
+            )}
           </div>
         )}
         
@@ -353,18 +392,38 @@ export function ScenarioEditor({ player }: Props) {
                     </div>
                   ) : (
                     <div className="empty-slot">
-                      <textarea
-                        value={newCardText}
-                        onChange={e => setNewCardText(e.target.value)}
-                        placeholder="Nombre..."
-                        className="mini-input"
-                      />
+                      <button className="pick-from-deck-btn small" onClick={() => openPokemonPicker('bench', i)}>
+                        📋
+                      </button>
                       <button onClick={() => handleSetBench(parseCardName(newCardText), i)}>+</button>
                     </div>
                   )}
                 </div>
               ))}
             </div>
+            {pokemonPickerTarget?.type === 'bench' && (
+              <div className="pokemon-picker-modal">
+                <h5>Seleccionar Pokémon - Bench #{pokemonPickerTarget.position! + 1}</h5>
+                <input
+                  type="text"
+                  placeholder="Buscar..."
+                  value={filterText}
+                  onChange={e => setFilterText(e.target.value)}
+                  className="card-filter-input"
+                />
+                <div className="pokemon-picker-list">
+                  {deckPokemon
+                    .filter(p => !filterText || p.name.toLowerCase().includes(filterText.toLowerCase()))
+                    .map((pokemon, i) => (
+                      <div key={i} className="pokemon-picker-item" onClick={() => handleSetBench(pokemon, pokemonPickerTarget.position!)}>
+                        <span>{pokemon.name}</span>
+                        <span className="pokemon-info">{pokemon.stage} {pokemon.hp}HP</span>
+                      </div>
+                    ))}
+                </div>
+                <button className="close-picker-btn" onClick={() => setPokemonPickerTarget(null)}>✕ Cerrar</button>
+              </div>
+            )}
           </div>
         )}
       </div>
