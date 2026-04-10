@@ -34,8 +34,8 @@ export function ScenarioEditor({ player }: Props) {
   const playerLabel = player === 'player1' ? 'Tú' : 'Oponente';
   const selectedDeck = player === 'player1' ? player1Deck : player2Deck;
   
-  // Get only pokemon from the selected deck
-  const deckPokemon = selectedDeck ? selectedDeck.pokemon : [];
+  // Get only pokemon from the selected deck (filter out used ones)
+  const deckPokemon = selectedDeck ? selectedDeck.pokemon.filter(p => !usedCardNames.has(p.name)) : [];
   
   // Get all cards (pokemon + trainers + energies) from deck
   const deckCards = selectedDeck 
