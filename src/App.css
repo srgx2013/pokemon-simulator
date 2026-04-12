@@ -2397,3 +2397,34 @@ body {
   font-size: 0.55rem;
   cursor: pointer;
 }
+
+/* Import Progress Indicator */
+.import-progress {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: var(--secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.progress-bar {
+  height: 8px;
+  background: var(--primary);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--success));
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-align: center;
+  margin: 0;
+}

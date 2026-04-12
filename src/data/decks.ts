@@ -341,3 +341,165 @@ export function parseDeckList(text: string): { pokemon: any[], trainers: any[], 
   
   return { pokemon, trainers, energies };
 }
+
+// ==========================================
+// ASYNC VERSION WITH API LOOKUP
+// ==========================================
+
+import { fetchCard, convertApiCard } from '../services/pokemonTcgApi';
+
+// Enhanced parse with API lookup
+export async function parseDeckListWithApi(
+  text: string, 
+  onProgress?: (current: number, total: number, cardName: string) => void
+): Promise<{ pokemon: any[], trainers: any[], energies: any[] }> {
+  const lines = text.trim().split('\n');
+  const pokemon: any[] = [];
+  const trainers: any[] = [];
+  const energies: any[] = [];
+  const skipped: string[] = [];
+  
+  // Cards to lookup in API
+  const cardsToLookup: { name: string, set?: string, number?: string, quantity: number }[] = [];
+  
+  const energyKeywords = ['psychic', 'fire', 'water', 'grass', 'electric', 'fighting', 'darkness', 'metal', 'dragon', 'fairy', 'normal', 'special'];
+  const trainerNames = [
+    "Lillie's Determination", 'Iono', "Boss's Orders", 'Buddy-Buddy Poffin',
+    'Counter Catcher', 'Night Stretcher', 'Jamming Tower', 'Hilda',
+    'Ultra Ball', 'PokePad', "Professor's Research", 'Nest Ball', 'Switch',
+    'Rare Candy', 'Super Rod', 'Fire Crystal', 'Arven', 'Crisice Rider',
+    'Poké Pad', 'Secret Box', 'Technical Machine', 'Bravery Charm', 'Spikemuth Gym', 'Artazon', 'Air Balloon', "Marnie's",
+    'Poffin', 'Gym', 'Marnie', 'Pokemon Center Lady', 'Rai', 'Otmane', 'Kofu', 'Dominic', 'Kieran'
+  ];
+  const trainerPrefixes = ["Lillie's", "Boss's", 'Iono', 'Arven', 'Hilda', "Professor'", 'Nest', 'Ultra', 'Rare', 'Super', 'Counter', 'Buddy-Buddy', 'Night', 'Jamming', 'Switch', 'Fire Crystal', 'Technical', 'Bravery', 'Spikemuth', 'Artazon', 'Air Balloon', 'Pokemon Center', 'Pokémon Center'];
+  
+  // First pass: identify all cards
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || 
+        trimmed.toLowerCase() === 'pokémon:' || 
+        trimmed.toLowerCase() === 'pokemon:' || 
+        trimmed.toLowerCase() === 'trainer:' || 
+        trimmed.toLowerCase() === 'trainers:' ||
+        trimmed.toLowerCase() === 'energy:') continue;
+    
+    // Energy card
+    const isEnergy = energyKeywords.some(e => trimmed.toLowerCase().includes(e.toLowerCase())) && 
+                     trimmed.toLowerCase().includes('energy');
+    if (isEnergy) {
+      const energyMatch = trimmed.match(/^(\d+)\s+(.+?)\s+Energy/i);
+      if (energyMatch) {
+        const quantity = parseInt(energyMatch[1]);
+        let energyType = energyMatch[2].toLowerCase().replace(/mee\s*\d+/i, '').replace(/\s+/g, '').trim();
+        if (energyType.includes('darkness')) energyType = 'darkness';
+        else if (energyType.includes('psychic')) energyType = 'psychic';
+        else if (energyType.includes('fire')) energyType = 'fire';
+        else if (energyType.includes('water')) energyType = 'water';
+        else if (energyType.includes('grass')) energyType = 'grass';
+        else if (energyType.includes('elec')) energyType = 'electric';
+        else if (energyType.includes('fight')) energyType = 'fighting';
+        else if (energyType.includes('metal')) energyType = 'metal';
+        else if (energyType.includes('dragon')) energyType = 'dragon';
+        else if (energyType.includes('fairy')) energyType = 'fairy';
+        else if (energyType.includes('normal')) energyType = 'normal';
+        else if (energyType.includes('special')) energyType = 'special';
+        
+        for (let i = 0; i < quantity; i++) {
+          energies.push({ type: energyType as EnergyType, quantity: 1 });
+        }
+      }
+      continue;
+    }
+    
+    // Parse line
+    const match1 = trimmed.match(/^(\d+)\s+(.+?)\s+([A-Z]{2,4})\s+(\d+)$/);
+    const match2 = trimmed.match(/^(\d+)\s+(.+?)\s+\(([A-Z]{2,4})\s+(\d+)\)$/);
+    const match3 = trimmed.match(/^(\d+)\s+(.+)$/);
+    
+    let quantity: number, name: string, setInfo: string | null = null;
+    
+    if (match1) {
+      quantity = parseInt(match1[1]);
+      name = match1[2].trim();
+      setInfo = match1[3] + ' ' + match1[4];
+    } else if (match2) {
+      quantity = parseInt(match2[1]);
+      name = match2[2].trim();
+      setInfo = match2[3] + ' ' + match2[4];
+    } else if (match3) {
+      quantity = parseInt(match3[1]);
+      name = match3[2].trim();
+      setInfo = null;
+    } else {
+      skipped.push(trimmed);
+      continue;
+    }
+    
+    name = name.replace(/\s*\([A-Z]{2,4}\s*\d+\)\s*$/i, '').trim();
+    name = name.replace(/\s+[A-Z]{2,4}\s+\d+\s*$/i, '').trim();
+    
+    // Check if trainer
+    const isLikelyTrainer = trainerPrefixes.some(prefix => name.includes(prefix)) ||
+                           trainerNames.some(t => name.toLowerCase().includes(t.toLowerCase()));
+    
+    if (isLikelyTrainer) {
+      for (let i = 0; i < quantity; i++) {
+        trainers.push({ name, type: 'item', description: '', rarity: 'uncommon' });
+      }
+      continue;
+    }
+    
+    // Pokemon - add to lookup list
+    const setCode = setInfo ? setInfo.split(' ')[0] : undefined;
+    const setNum = setInfo ? setInfo.split(' ')[1] : undefined;
+    cardsToLookup.push({ name, set: setCode, number: setNum, quantity });
+  }
+  
+  // Lookup cards in API
+  const total = cardsToLookup.length;
+  let current = 0;
+  
+  for (const cardInfo of cardsToLookup) {
+    current++;
+    onProgress?.(current, total, cardInfo.name);
+    
+    const apiCard = await fetchCard(cardInfo.name, cardInfo.set, cardInfo.number);
+    
+    for (let i = 0; i < cardInfo.quantity; i++) {
+      if (apiCard) {
+        // Use API data
+        const convertedCard = convertApiCard(apiCard);
+        pokemon.push(convertedCard);
+      } else {
+        // Fallback to local database
+        const cardKey = Object.keys(cardDatabase).find(k => {
+          const cardName = k.split('-')[0].toLowerCase();
+          return cardInfo.name.toLowerCase().includes(cardName);
+        });
+        
+        if (cardKey && cardDatabase[cardKey]) {
+          pokemon.push(cardDatabase[cardKey]);
+        } else {
+          // Ultimate fallback
+          pokemon.push({
+            name: cardInfo.name,
+            stage: 'basic',
+            hp: 100,
+            type: 'normal',
+            attacks: [],
+            retreatCost: 1,
+            rarity: 'common',
+          });
+        }
+      }
+    }
+  }
+  
+  if (skipped.length > 0) {
+    console.log('Skipped lines:', skipped);
+  }
+  
+  console.log(`Import with API complete: ${pokemon.length} Pokemon, ${trainers.length} Trainers, ${energies.length} Energies`);
+  
+  return { pokemon, trainers, energies };
+}

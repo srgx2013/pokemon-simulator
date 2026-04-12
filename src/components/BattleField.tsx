@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
-import { energyTypes, energyColors, parseDeckList } from '../data/decks';
+import { energyTypes, energyColors } from '../data/decks';
+import { parseDeckListWithApi } from '../data/decks';
 import { PokemonCard } from './PokemonCard';
 import { v4 as uuidv4 } from 'uuid';
 import type { PokemonInstance, PokemonCard as PokemonCardType, EnergyType, StatusCondition, DeckPreset } from '../types';
@@ -389,32 +390,48 @@ export function DeckSelector() {
     }
   };
   
-  const handleImport = (targetPlayer: 'player1' | 'player2') => {
+  const [importProgress, setImportProgress] = useState<{ current: number; total: number; cardName: string } | null>(null);
+  
+  const handleImport = async (targetPlayer: 'player1' | 'player2') => {
     const text = targetPlayer === 'player1' ? importTextP1 : importTextP2;
     if (!text.trim()) return;
     
-    const { pokemon, trainers, energies } = parseDeckList(text);
-    if (pokemon.length > 0 || trainers.length > 0 || energies.length > 0) {
+    try {
       const deckName = prompt(`Nombre del mazo para ${targetPlayer === 'player1' ? 'Player 1' : 'Player 2'}:`) || `Mazo ${targetPlayer === 'player1' ? 'Player 1' : 'Player 2'}`;
-      const newDeck = {
-        id: uuidv4(),
-        name: deckName,
-        description: 'Mazo importado',
-        pokemon,
-        trainers,
-        energies,
-      };
       
-      if (targetPlayer === 'player1') {
-        setPlayer1Deck(newDeck);
-        setImportTextP1('');
-      } else {
-        setPlayer2Deck(newDeck);
-        setImportTextP2('');
+      setImportProgress({ current: 0, total: 1, cardName: 'Iniciando...' });
+      
+      const { pokemon, trainers, energies } = await parseDeckListWithApi(text, (current, total, cardName) => {
+        setImportProgress({ current, total, cardName });
+      });
+      
+      setImportProgress(null);
+      
+      if (pokemon.length > 0 || trainers.length > 0 || energies.length > 0) {
+        const newDeck = {
+          id: uuidv4(),
+          name: deckName,
+          description: 'Mazo importado con datos de API',
+          pokemon,
+          trainers,
+          energies,
+        };
+        
+        if (targetPlayer === 'player1') {
+          setPlayer1Deck(newDeck);
+          setImportTextP1('');
+        } else {
+          setPlayer2Deck(newDeck);
+          setImportTextP2('');
+        }
+        
+        addCustomDeck(newDeck);
+        console.log(`✅ Deck "${deckName}" importado con ${pokemon.length} Pokémon`);
       }
-      
-      // Save to customDecks for future use
-      addCustomDeck(newDeck);
+    } catch (error) {
+      console.error('Error importing deck:', error);
+      setImportProgress(null);
+      alert('Error al importar el mazo. Intenta de nuevo.');
     }
   };
   
@@ -438,7 +455,7 @@ export function DeckSelector() {
                 placeholder="Pega el deck list de Player 1..."
                 rows={3}
               />
-              <button onClick={() => handleImport('player1')} className="import-btn" disabled={!importTextP1.trim()}>
+              <button onClick={() => handleImport('player1')} className="import-btn" disabled={!importTextP1.trim() || importProgress !== null}>
                 Importar Player 1
               </button>
             </div>
@@ -451,10 +468,24 @@ export function DeckSelector() {
                 placeholder="Pega el deck list de Player 2..."
                 rows={3}
               />
-              <button onClick={() => handleImport('player2')} className="import-btn" disabled={!importTextP2.trim()}>
+              <button onClick={() => handleImport('player2')} className="import-btn" disabled={!importTextP2.trim() || importProgress !== null}>
                 Importar Player 2
               </button>
             </div>
+
+            {importProgress && (
+              <div className="import-progress">
+                <div className="progress-bar">
+                  <div 
+                    className="progress-fill" 
+                    style={{ width: `${(importProgress.current / importProgress.total) * 100}%` }}
+                  />
+                </div>
+                <p className="progress-text">
+                  🔄 Buscando: {importProgress.cardName} ({importProgress.current}/{importProgress.total})
+                </p>
+              </div>
+            )}
 
             <div className="deck-selection-grid">
               <div className="deck-player-section">
