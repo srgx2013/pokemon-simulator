@@ -90,6 +90,13 @@ export function BattleField({ player, isCurrentPlayer = false }: Props) {
     const cardData = e.dataTransfer.getData('card');
     if (!cardData) return;
     
+    // Validate: only allow drops from the same player
+    const fromPlayer = e.dataTransfer.getData('fromPlayer');
+    if (fromPlayer && fromPlayer !== targetPlayer) {
+      console.log('Cannot drop card from opponent to your bench!');
+      return;
+    }
+    
     const card = JSON.parse(cardData);
     const fromHand = e.dataTransfer.getData('fromHand');
     const handIndex = parseInt(e.dataTransfer.getData('handIndex') || '-1');
@@ -134,6 +141,13 @@ export function BattleField({ player, isCurrentPlayer = false }: Props) {
     e.preventDefault();
     const cardData = e.dataTransfer.getData('card');
     if (!cardData) return;
+    
+    // Validate: only allow drops from the same player
+    const fromPlayer = e.dataTransfer.getData('fromPlayer');
+    if (fromPlayer && fromPlayer !== targetPlayer) {
+      console.log('Cannot drop card from opponent to your active!');
+      return;
+    }
     
     const card = JSON.parse(cardData);
     const fromHand = e.dataTransfer.getData('fromHand');
@@ -344,15 +358,16 @@ export function BattleField({ player, isCurrentPlayer = false }: Props) {
 
 export function DeckSelector() {
   const [showDeck, setShowDeck] = useState(false);
-  const [importText, setImportText] = useState('');
+  const [importTextP1, setImportTextP1] = useState('');
+  const [importTextP2, setImportTextP2] = useState('');
   const customDecks = useGameStore(state => state.customDecks);
   const loadCustomDecks = useGameStore(state => state.loadCustomDecks);
+  const addCustomDeck = useGameStore(state => state.addCustomDeck);
   const player1Deck = useGameStore(state => state.player1Deck);
   const player2Deck = useGameStore(state => state.player2Deck);
   const setPlayer1Deck = useGameStore(state => state.setPlayer1Deck);
   const setPlayer2Deck = useGameStore(state => state.setPlayer2Deck);
   const startGame = useGameStore(state => state.startGame);
-  // Note: gameState can be used in the future for mulligan checking during deck selection
   
   const handleOpenDeckModal = () => {
     loadCustomDecks();
@@ -374,11 +389,13 @@ export function DeckSelector() {
     }
   };
   
-  const handleImport = () => {
-    if (!importText.trim()) return;
-    const { pokemon, trainers, energies } = parseDeckList(importText);
-    if (pokemon.length > 0) {
-      const deckName = prompt('Nombre del mazo:') || 'Mazo Personalizado';
+  const handleImport = (targetPlayer: 'player1' | 'player2') => {
+    const text = targetPlayer === 'player1' ? importTextP1 : importTextP2;
+    if (!text.trim()) return;
+    
+    const { pokemon, trainers, energies } = parseDeckList(text);
+    if (pokemon.length > 0 || trainers.length > 0 || energies.length > 0) {
+      const deckName = prompt(`Nombre del mazo para ${targetPlayer === 'player1' ? 'Player 1' : 'Player 2'}:`) || `Mazo ${targetPlayer === 'player1' ? 'Player 1' : 'Player 2'}`;
       const newDeck = {
         id: uuidv4(),
         name: deckName,
@@ -387,10 +404,17 @@ export function DeckSelector() {
         trainers,
         energies,
       };
-      // Use setPlayer1Deck instead of addCustomDeck
-      setPlayer1Deck(newDeck);
-      setPlayer2Deck(null);
-      setImportText('');
+      
+      if (targetPlayer === 'player1') {
+        setPlayer1Deck(newDeck);
+        setImportTextP1('');
+      } else {
+        setPlayer2Deck(newDeck);
+        setImportTextP2('');
+      }
+      
+      // Save to customDecks for future use
+      addCustomDeck(newDeck);
     }
   };
   
@@ -407,15 +431,28 @@ export function DeckSelector() {
             <h3>Seleccionar Mazos</h3>
             
             <div className="import-section">
-              <label>Importar nuevo mazo:</label>
+              <label>🎯 Importar mazo Player 1:</label>
               <textarea 
-                value={importText}
-                onChange={e => setImportText(e.target.value)}
-                placeholder="Pegar deck list..."
-                rows={4}
+                value={importTextP1}
+                onChange={e => setImportTextP1(e.target.value)}
+                placeholder="Pega el deck list de Player 1..."
+                rows={3}
               />
-              <button onClick={handleImport} className="import-btn">
-                Importar
+              <button onClick={() => handleImport('player1')} className="import-btn" disabled={!importTextP1.trim()}>
+                Importar Player 1
+              </button>
+            </div>
+
+            <div className="import-section">
+              <label>⚔️ Importar mazo Player 2:</label>
+              <textarea 
+                value={importTextP2}
+                onChange={e => setImportTextP2(e.target.value)}
+                placeholder="Pega el deck list de Player 2..."
+                rows={3}
+              />
+              <button onClick={() => handleImport('player2')} className="import-btn" disabled={!importTextP2.trim()}>
+                Importar Player 2
               </button>
             </div>
 
@@ -428,17 +465,20 @@ export function DeckSelector() {
                     <button onClick={() => setPlayer1Deck(null)}>Cambiar</button>
                   </div>
                 ) : (
-                  <div className="deck-list">
-                    {customDecks.map(deck => (
-                      <button 
-                        key={deck.id}
-                        className="deck-option"
-                        onClick={() => handleSelectDeckPlayer1(deck)}
-                      >
-                        {deck.name}
-                      </button>
-                    ))}
-                  </div>
+                  <>
+                    <p className="no-deck-message">No hay mazo seleccionado</p>
+                    <div className="deck-list">
+                      {customDecks.map(deck => (
+                        <button 
+                          key={deck.id}
+                          className="deck-option"
+                          onClick={() => handleSelectDeckPlayer1(deck)}
+                        >
+                          {deck.name}
+                        </button>
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
 
@@ -450,17 +490,20 @@ export function DeckSelector() {
                     <button onClick={() => setPlayer2Deck(null)}>Cambiar</button>
                   </div>
                 ) : (
-                  <div className="deck-list">
-                    {customDecks.map(deck => (
-                      <button 
-                        key={deck.id}
-                        className="deck-option"
-                        onClick={() => handleSelectDeckPlayer2(deck)}
-                      >
-                        {deck.name}
-                      </button>
-                    ))}
-                  </div>
+                  <>
+                    <p className="no-deck-message">No hay mazo seleccionado</p>
+                    <div className="deck-list">
+                      {customDecks.map(deck => (
+                        <button 
+                          key={deck.id}
+                          className="deck-option"
+                          onClick={() => handleSelectDeckPlayer2(deck)}
+                        >
+                          {deck.name}
+                        </button>
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
             </div>

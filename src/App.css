@@ -1728,6 +1728,8 @@ body {
   border-radius: 8px;
   padding: 0.75rem;
   margin-bottom: 0.5rem;
+  max-height: 350px;
+  overflow-y: auto;
 }
 
 .editor-section h5 {
@@ -2157,4 +2159,241 @@ body {
   font-size: 0.65rem;
   color: var(--text-secondary);
   text-transform: uppercase;
+}
+
+/* Quick Pickers - Inline card lists in editor sections */
+.pokemon-quick-picker,
+.card-quick-picker {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--border);
+}
+
+.pokemon-quick-picker h6,
+.card-quick-picker h6 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.no-pokemon {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-style: italic;
+  text-align: center;
+  padding: 0.5rem;
+}
+
+/* Override picker lists to be inline in quick pickers */
+.pokemon-quick-picker .pokemon-picker-list,
+.card-quick-picker .card-picker-list {
+  max-height: 200px;
+  background: var(--secondary);
+  border-radius: 6px;
+  padding: 0.5rem;
+}
+
+/* Card picker option hover effect */
+.card-quick-picker .card-picker-option {
+  padding: 0.4rem 0.5rem;
+}
+
+.card-quick-picker .card-picker-option:hover {
+  border-color: var(--success);
+  background: rgba(74, 222, 128, 0.1);
+}
+
+.card-quick-picker .card-picker-name {
+  font-size: 0.75rem;
+}
+
+.card-quick-picker .card-picker-type {
+  font-size: 0.6rem;
+}
+
+/* Pokemon picker inline */
+.pokemon-quick-picker .pokemon-picker-item {
+  padding: 0.3rem 0.5rem;
+}
+
+.pokemon-quick-picker .pokemon-picker-item:hover {
+  background: var(--success);
+}
+
+.pokemon-quick-picker .pokemon-picker-item span:first-child {
+  font-size: 0.7rem;
+}
+
+/* Energy Controls in Editor */
+.energy-controls {
+  margin: 0.5rem 0;
+  padding: 0.5rem;
+  background: var(--secondary);
+  border-radius: 6px;
+}
+
+.energy-label {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.energy-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.energy-btn {
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--border);
+  border-radius: 6px;
+  background: var(--primary);
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.energy-btn:hover {
+  transform: scale(1.1);
+  border-color: var(--accent);
+}
+
+.energy-btn.attached {
+  border-color: white;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+.energy-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+}
+
+.energy-badge {
+  font-size: 0.6rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  color: white;
+  text-transform: uppercase;
+  font-weight: bold;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+/* Retreat Info */
+.retreat-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.7rem;
+  padding: 0.4rem;
+  background: var(--secondary);
+  border-radius: 4px;
+  margin: 0.5rem 0;
+}
+
+.retreat-ready {
+  color: var(--success);
+  font-weight: bold;
+}
+
+.retreat-need {
+  color: var(--warning);
+}
+
+/* Bench Pokemon Full (with energy controls) */
+.bench-slot-editor {
+  min-height: 100px;
+}
+
+.bench-pokemon-full {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  background: var(--primary);
+  border-radius: 4px;
+}
+
+.bench-pokemon-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.bench-pokemon-name {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bench-pokemon-hp {
+  font-size: 0.6rem;
+  color: var(--success);
+  white-space: nowrap;
+}
+
+.bench-energy-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.energy-count {
+  font-size: 0.6rem;
+  color: var(--warning);
+}
+
+.bench-energy-buttons {
+  display: flex;
+  gap: 0.125rem;
+}
+
+.bench-energy-btn {
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--secondary);
+  color: var(--text-secondary);
+  font-size: 0.55rem;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 0;
+}
+
+.bench-energy-btn.attached {
+  border-color: white;
+  color: white;
+}
+
+.bench-pokemon-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.bench-pokemon-actions button {
+  flex: 1;
+  padding: 0.2rem;
+  background: var(--accent);
+  border: none;
+  border-radius: 3px;
+  color: white;
+  font-size: 0.55rem;
+  cursor: pointer;
 }

@@ -6,7 +6,7 @@ export const dragapultDeck: DeckPreset = {
   pokemon: [
     { name: 'Dreepy', stage: 'basic', hp: 70, type: 'psychic', attacks: [{ name: 'Quick Attack', cost: ['psychic'], damage: '30', description: '' }], retreatCost: 1, rarity: 'common' },
     { name: 'Drakloak', stage: 'stage1', hp: 90, type: 'psychic', evolvesFrom: 'Dreepy', attacks: [{ name: 'Pierce', cost: ['psychic', 'psychic'], damage: '50', description: '' }], retreatCost: 1, rarity: 'uncommon' },
-    { name: 'Dragapult ex', stage: 'stage1', hp: 320, type: 'psychic', evolvesFrom: 'Drakloak', attacks: [{ name: 'Jet Headbutt', cost: ['psychic'], damage: '70', description: '' }, { name: 'Phantom Drive', cost: ['psychic', 'psychic', 'psychic'], damage: '200', description: 'Put 6 damage counters on your opponent\'s Benched Pokémon in any way you like.' }], retreatCost: 2, rarity: 'ultra' },
+    { name: 'Dragapult ex', stage: 'stage1', hp: 320, type: 'dragon', evolvesFrom: 'Drakloak', attacks: [{ name: 'Jet Headbutt', cost: ['normal'], damage: '70', description: '' }, { name: 'Phantom Dive', cost: ['fire', 'psychic'], damage: '200', description: 'Put 6 damage counters on your opponent\'s Benched Pokémon in any way you like.' }], retreatCost: 1, rarity: 'ultra' },
     { name: 'Duskull', stage: 'basic', hp: 60, type: 'psychic', attacks: [{ name: 'Come and Get You', cost: ['psychic'], damage: '0', description: 'Put up to 3 Duskull from your discard pile onto your Bench.' }, { name: 'Mumble', cost: ['psychic'], damage: '30', description: '' }], retreatCost: 1, rarity: 'common' },
     { name: 'Dusclops', stage: 'stage1', hp: 90, type: 'psychic', evolvesFrom: 'Duskull', attacks: [{ name: 'Cursed Blast', cost: ['psychic'], damage: '0', description: 'Once during your turn, you may put 5 damage counters on 1 of your opponent\'s Pokémon.' }, { name: 'Fade to Black', cost: ['psychic', 'psychic'], damage: '50', description: '' }], retreatCost: 1, rarity: 'uncommon' },
     { name: 'Dusknoir', stage: 'stage2', hp: 160, type: 'psychic', evolvesFrom: 'Dusclops', attacks: [{ name: 'Grim Marker', cost: ['psychic', 'psychic'], damage: '60', description: 'If this Pokémon is in your discard pile, put 3 damage counters on 1 of your opponent\'s Pokémon.' }, { name: 'Shadowy Touch', cost: ['psychic', 'psychic', 'psychic'], damage: '120', description: 'Switch 1 of your opponent\'s Benched Pokémon with their Active Pokémon.' }], retreatCost: 3, rarity: 'rare' },
@@ -130,7 +130,7 @@ export const cardDatabase: Record<string, CardData> = {
   // Dragapult Deck
   'Dreepy-TWM-128': { name: 'Dreepy', set: 'TWM', num: '128', hp: 70, type: 'psychic', stage: 'basic', rarity: 'common', attacks: [{ name: 'Quick Attack', cost: ['psychic'], damage: '30', description: '' }], retreatCost: 1 },
   'Drakloak-TWM-129': { name: 'Drakloak', set: 'TWM', num: '129', hp: 90, type: 'psychic', stage: 'stage1', rarity: 'uncommon', attacks: [{ name: 'Pierce', cost: ['psychic', 'psychic'], damage: '50', description: '' }], evolvesFrom: 'Dreepy', retreatCost: 1 },
-  'Dragapult ex-TWM-130': { name: 'Dragapult ex', set: 'TWM', num: '130', hp: 320, type: 'psychic', stage: 'stage1', rarity: 'ultra', attacks: [{ name: 'Jet Headbutt', cost: ['psychic'], damage: '70', description: '' }, { name: 'Phantom Drive', cost: ['psychic', 'psychic', 'psychic'], damage: '200', description: 'Put 6 damage counters on your opponent\'s Benched Pokémon in any way you like.' }], evolvesFrom: 'Drakloak', retreatCost: 2 },
+  'Dragapult ex-TWM-130': { name: 'Dragapult ex', set: 'TWM', num: '130', hp: 320, type: 'dragon', stage: 'stage1', rarity: 'ultra', attacks: [{ name: 'Jet Headbutt', cost: ['normal'], damage: '70', description: '' }, { name: 'Phantom Dive', cost: ['fire', 'psychic'], damage: '200', description: 'Put 6 damage counters on your opponent\'s Benched Pokémon in any way you like.' }], evolvesFrom: 'Drakloak', retreatCost: 1 },
   'Duskull-PRE-35': { name: 'Duskull', set: 'PRE', num: '35', hp: 60, type: 'psychic', stage: 'basic', rarity: 'common', attacks: [{ name: 'Come and Get You', cost: ['psychic'], damage: '0', description: 'Put up to 3 Duskull from your discard pile onto your Bench.' }, { name: 'Mumble', cost: ['psychic'], damage: '30', description: '' }], retreatCost: 1 },
   'Duskull-SFA-18': { name: 'Duskull', set: 'SFA', num: '18', hp: 60, type: 'psychic', stage: 'basic', rarity: 'common', attacks: [{ name: 'Come and Get You', cost: ['psychic'], damage: '0', description: 'Put up to 3 Duskull from your discard pile onto your Bench.' }, { name: 'Mumble', cost: ['psychic'], damage: '30', description: '' }], retreatCost: 1 },
   'Dusclops-PRE-36': { name: 'Dusclops', set: 'PRE', num: '36', hp: 90, type: 'psychic', stage: 'stage1', rarity: 'uncommon', attacks: [{ name: 'Cursed Blast', cost: ['psychic'], damage: '0', description: 'Once during your turn, you may put 5 damage counters on 1 of your opponent\'s Pokémon.' }, { name: 'Fade to Black', cost: ['psychic', 'psychic'], damage: '50', description: '' }], evolvesFrom: 'Duskull', retreatCost: 1 },
@@ -158,24 +158,34 @@ export function parseDeckList(text: string): { pokemon: any[], trainers: any[], 
   const pokemon: any[] = [];
   const trainers: any[] = [];
   const energies: any[] = [];
+  const skipped: string[] = [];
   
-  const energyKeywords = ['psychic', 'fire', 'water', 'grass', 'electric', 'fighting', 'darkness', 'metal', 'dragon', 'fairy', 'normal', 'special', 'psychic'];
+  const energyKeywords = ['psychic', 'fire', 'water', 'grass', 'electric', 'fighting', 'darkness', 'metal', 'dragon', 'fairy', 'normal', 'special'];
   const trainerNames = [
     "Lillie's Determination", 'Iono', "Boss's Orders", 'Buddy-Buddy Poffin',
     'Counter Catcher', 'Night Stretcher', 'Jamming Tower', 'Hilda',
     'Ultra Ball', 'PokePad', "Professor's Research", 'Nest Ball', 'Switch',
     'Rare Candy', 'Super Rod', 'Fire Crystal', 'Arven', 'Crisice Rider',
     'Poké Pad', 'Secret Box', 'Technical Machine', 'Bravery Charm', 'Spikemuth Gym', 'Artazon', 'Air Balloon', "Marnie's",
-    'Poffin', 'Gym'
+    'Poffin', 'Gym', 'Marnie', 'Pokemon Center Lady', 'Rai', 'Otmane', 'Kofu', 'Dominic', 'Kieran'
   ];
+  
+  // Trainer card prefixes that indicate it's definitely a trainer
+  const trainerPrefixes = ["Lillie's", "Boss's", 'Iono', 'Arven', 'Hilda', "Professor'", 'Nest', 'Ultra', 'Rare', 'Super', 'Counter', 'Buddy-Buddy', 'Night', 'Jamming', 'Switch', 'Fire Crystal', 'Technical', 'Bravery', 'Spikemuth', 'Artazon', 'Air Balloon', 'Pokemon Center', 'Pokémon Center'];
   
   for (const line of lines) {
     const trimmed = line.trim();
-    // Skip empty lines and section headers - be flexible withPokémon/Pokemon
-    if (!trimmed || trimmed.toLowerCase() === 'pokémon:' || trimmed.toLowerCase() === 'pokemon:' || trimmed.toLowerCase() === 'trainer:' || trimmed.toLowerCase() === 'energy:') continue;
+    // Skip empty lines and section headers
+    if (!trimmed || 
+        trimmed.toLowerCase() === 'pokémon:' || 
+        trimmed.toLowerCase() === 'pokemon:' || 
+        trimmed.toLowerCase() === 'trainer:' || 
+        trimmed.toLowerCase() === 'trainers:' ||
+        trimmed.toLowerCase() === 'energy:') continue;
     
-    // Check if this is an energy card first (before other patterns)
-    const isEnergy = energyKeywords.some(e => trimmed.toLowerCase().includes(e.toLowerCase()) && trimmed.toLowerCase().includes('energy'));
+    // Check if this is an energy card first
+    const isEnergy = energyKeywords.some(e => trimmed.toLowerCase().includes(e.toLowerCase())) && 
+                     trimmed.toLowerCase().includes('energy');
     
     if (isEnergy) {
       // Pattern: "4 Psychic Energy" or "4 Psychic Energy MEE 7" or "9 Darkness Energy MEE 7"
@@ -210,12 +220,14 @@ export function parseDeckList(text: string): { pokemon: any[], trainers: any[], 
       }
     }
     
-    // Pattern 1: "4 Munkidori TWM 95" - no parentheses
-    // Pattern 2: "4 Munkidori (TWM 95)" - with parentheses, space instead of dash
+    // Parse line: extract quantity and card name
+    // Pattern: "4 Munkidori TWM 95" or "4 Munkidori (TWM 95)" or "4 Munkidori"
     const match1 = trimmed.match(/^(\d+)\s+(.+?)\s+([A-Z]{2,4})\s+(\d+)$/);
     const match2 = trimmed.match(/^(\d+)\s+(.+?)\s+\(([A-Z]{2,4})\s+(\d+)\)$/);
+    // Pattern 3: "4 Card Name" - no set info
+    const match3 = trimmed.match(/^(\d+)\s+(.+)$/);
     
-    let quantity: number, name: string, setInfo: string;
+    let quantity: number, name: string, setInfo: string | null = null;
     
     if (match1) {
       quantity = parseInt(match1[1]);
@@ -225,42 +237,30 @@ export function parseDeckList(text: string): { pokemon: any[], trainers: any[], 
       quantity = parseInt(match2[1]);
       name = match2[2].trim();
       setInfo = match2[3] + ' ' + match2[4];
+    } else if (match3) {
+      quantity = parseInt(match3[1]);
+      name = match3[2].trim();
+      setInfo = null;
     } else {
+      skipped.push(trimmed);
       continue;
     }
     
-    // Try to match against the card database
-    const cardKey = Object.keys(cardDatabase).find(k => {
-      const cardName = k.split('-')[0].toLowerCase();
-      const cardSet = k.split('-')[1];
-      const cardNum = k.split('-')[2];
-      
-      const nameMatch = name.toLowerCase().includes(cardName);
-      const setCode = setInfo.split(' ')[0].toUpperCase().replace('-', '');
-      const setNum = setInfo.split(' ')[1]?.replace('-', '') || '';
-      const setMatch = setCode === cardSet;
-      const numMatch = setNum === cardNum || !setNum || !cardNum;
-      
-      return nameMatch && setMatch && numMatch;
-    });
+    // Clean name: remove any trailing set info that wasn't captured
+    name = name.replace(/\s*\([A-Z]{2,4}\s*\d+\)\s*$/i, '').trim();
+    name = name.replace(/\s+[A-Z]{2,4}\s+\d+\s*$/i, '').trim();
     
-    if (cardKey && cardDatabase[cardKey]) {
-      console.log('Found Pokemon:', cardKey, 'qty:', quantity);
+    // Check if it's a trainer first (before trying to find in Pokemon database)
+    const isLikelyTrainer = trainerPrefixes.some(prefix => name.includes(prefix)) ||
+                           trainerNames.some(t => name.toLowerCase().includes(t.toLowerCase()));
+    
+    if (isLikelyTrainer) {
       for (let i = 0; i < quantity; i++) {
-        pokemon.push({ ...cardDatabase[cardKey], rarity: cardDatabase[cardKey].rarity });
-      }
-    } else if (name.includes('Energy')) {
-      const energyType = name.replace(' Energy', '').replace(' - Special', '').replace(' MEE 7', '').toLowerCase();
-      for (let i = 0; i < quantity; i++) {
-        energies.push({ 
-          type: energyType.includes('special') ? 'special' : energyType as EnergyType,
-          quantity: 1 
-        });
-      }
-    } else if (trainerNames.some(t => name.toLowerCase().includes(t.toLowerCase()))) {
-      for (let i = 0; i < quantity; i++) {
-        const isSupporter = name.includes('Boss') || name.includes('Lillie') || name.includes('Iono') || name.includes('Hilda') || name.includes('Arven') || name.includes('Professor') || name.includes('Gym') || name.includes('Marnie');
-        const isStadium = name.includes('Gym') || name.includes('Stadium') || name.includes('Artazon');
+        const isSupporter = name.includes('Boss') || name.includes("Lillie") || name.includes('Iono') || 
+                           name.includes('Hilda') || name.includes('Arven') || name.includes('Professor') || 
+                           name.includes('Marnie') || name.includes('Rai') || name.includes('Otmane') ||
+                           name.includes('Kofu') || name.includes('Dominic') || name.includes('Kieran');
+        const isStadium = name.includes('Gym') || name.includes('Stadium') || name.includes('Artazon') || name.includes('Pokemon Center');
         trainers.push({ 
           name, 
           type: isStadium ? 'stadium' : (isSupporter ? 'supporter' : 'item'),
@@ -268,8 +268,76 @@ export function parseDeckList(text: string): { pokemon: any[], trainers: any[], 
           rarity: 'uncommon' 
         });
       }
+      continue;
+    }
+    
+    // Try to match against the card database
+    let foundCard: CardData | null = null;
+    let matchType = '';
+    
+    if (setInfo) {
+      // Try exact match with set info
+      const cardKey = Object.keys(cardDatabase).find(k => {
+        const cardName = k.split('-')[0].toLowerCase();
+        const cardSet = k.split('-')[1];
+        const cardNum = k.split('-')[2];
+        
+        const nameMatch = name.toLowerCase().includes(cardName);
+        const setCode = setInfo.split(' ')[0].toUpperCase().replace('-', '');
+        const setNum = setInfo.split(' ')[1]?.replace('-', '') || '';
+        const setMatch = setCode === cardSet;
+        const numMatch = setNum === cardNum || !setNum || !cardNum;
+        
+        return nameMatch && setMatch && numMatch;
+      });
+      
+      if (cardKey && cardDatabase[cardKey]) {
+        foundCard = cardDatabase[cardKey];
+        matchType = 'exact';
+      }
+    }
+    
+    // Fallback: try name-only match if no set info or not found
+    if (!foundCard) {
+      const cardKey = Object.keys(cardDatabase).find(k => {
+        const cardName = k.split('-')[0].toLowerCase();
+        return name.toLowerCase().includes(cardName);
+      });
+      
+      if (cardKey && cardDatabase[cardKey]) {
+        foundCard = cardDatabase[cardKey];
+        matchType = 'name-only';
+      }
+    }
+    
+    if (foundCard) {
+      console.log(`Found: ${name} (${matchType}) x${quantity}`);
+      for (let i = 0; i < quantity; i++) {
+        pokemon.push({ ...foundCard, rarity: foundCard.rarity });
+      }
+    } else {
+      // Ultimate fallback: create a basic Pokemon card with what we know
+      console.log(`Creating fallback card for: ${name} x${quantity}`);
+      const fallbackPokemon = {
+        name: name,
+        stage: 'basic' as const,
+        hp: 100,
+        type: 'normal',
+        attacks: [],
+        retreatCost: 1,
+        rarity: 'common' as const,
+      };
+      for (let i = 0; i < quantity; i++) {
+        pokemon.push(fallbackPokemon);
+      }
     }
   }
+  
+  if (skipped.length > 0) {
+    console.log('Skipped lines:', skipped);
+  }
+  
+  console.log(`Import complete: ${pokemon.length} Pokemon, ${trainers.length} Trainers, ${energies.length} Energies`);
   
   return { pokemon, trainers, energies };
 }

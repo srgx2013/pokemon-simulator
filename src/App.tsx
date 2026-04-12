@@ -36,6 +36,7 @@ function App() {
   const handleDragStart = (e: React.DragEvent, card: any, index: number) => {
     e.dataTransfer.setData('card', JSON.stringify(card));
     e.dataTransfer.setData('fromHand', 'player1');
+    e.dataTransfer.setData('fromPlayer', 'player1');
     e.dataTransfer.setData('handIndex', index.toString());
   };
   
@@ -43,6 +44,7 @@ function App() {
   const handleDragStartOpponent = (e: React.DragEvent, card: any, index: number) => {
     e.dataTransfer.setData('card', JSON.stringify(card));
     e.dataTransfer.setData('fromHand', 'opponent');
+    e.dataTransfer.setData('fromPlayer', 'player2');
     e.dataTransfer.setData('handIndex', index.toString());
   };
   
