@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useGameStore } from '../store/gameStore';
 import type { MoveRecommendation } from '../types';
 
@@ -15,42 +15,39 @@ export function AIPanel() {
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<AIResponse | null>(null);
   const [apiKey, setApiKey] = useState('');
-  const [activeTab, setActiveTab] = useState<'analysis' | 'moves' | 'odds'>('analysis');
-  
+  const [activeTab, setActiveTab] = useState<'export' | 'analysis' | 'external'>('export');
+  const [copied, setCopied] = useState(false);
+
   const getStateForAI = useGameStore(state => state.getStateForAI);
   const gameState = useGameStore(state => state.gameState);
 
-  const copyStateToClipboard = async () => {
+  const copyStateToClipboard = useCallback(async () => {
     const stateText = getStateForAI();
-    
+
     try {
       await navigator.clipboard.writeText(stateText);
-      alert('✅ Estado copiado al portapapeles.\n\nPega este texto en tu IA favorita para análisis.');
-      return stateText;
-    } catch (error) {
-      console.error('Copy error:', error);
-      // Fallback: seleccionar texto
+    } catch {
+      // Fallback
       const textarea = document.createElement('textarea');
       textarea.value = stateText;
       document.body.appendChild(textarea);
       textarea.select();
       document.execCommand('copy');
       document.body.removeChild(textarea);
-      alert('✅ Estado copiado (fallback).\n\nPega este texto en tu IA favorita para análisis.');
-      return stateText;
     }
-  };
 
-  const analyze = async () => {
-    // First copy state to clipboard
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+    return stateText;
+  }, [getStateForAI]);
+
+  const analyzeWithHF = async () => {
     const stateText = await copyStateToClipboard();
-    
-    if (!apiKey) {
-      return; // Still copied, but don't call API
-    }
+
+    if (!apiKey) return;
 
     setLoading(true);
-    
+
     const prompt = `You are an expert Pokémon TCG player. Analyze the current game state and provide strategic advice.
 
 CURRENT GAME STATE:
@@ -95,13 +92,12 @@ ODDS: Win: X% | Lose: Y% | Draw: Z%
       });
 
       const data = await res.json();
-      
       const text = data.choices?.[0]?.message?.content || data.error || 'No response';
-      
+
       const analysisMatch = text.match(/ANALYSIS:\s*(.*?)(?=---|$)/s);
       const recMatch = text.match(/RECOMMENDATIONS:\s*(.*?)(?=---|$)/s);
       const oddsMatch = text.match(/ODDS:\s*Win:\s*(\d+)%\s*\|\s*Lose:\s*(\d+)%/);
-      
+
       const recommendations: MoveRecommendation[] = [];
       if (recMatch) {
         const lines = recMatch[1].trim().split('\n').filter((l: string) => l.trim());
@@ -138,143 +134,166 @@ ODDS: Win: X% | Lose: Y% | Draw: Z%
         odds: { win: 50, lose: 50 },
       });
     }
-    
+
     setLoading(false);
   };
 
   const quickAnalysis = () => {
     const { player1, player2 } = gameState;
-    const p1Active = player1.active;
-    const p2Active = player2.active;
-    
-    let analysis = '## Análisis Rápido\n\n';
-    
-    if (!p1Active || !p2Active) {
-      analysis += '⚠️ Falta configurar Pokémon activos para ambos jugadores.\n';
-    } else {
-      if (p1Active.currentHp <= 0) {
-        analysis += '❌ Tu Pokémon activo está derrotado. Necesitas hacer retreat o usar otro.\n';
-      } else if (p2Active.currentHp <= 0) {
-        analysis += '✅ El Pokémon enemigo está derrotado. Tienes ventaja.\n';
-      } else {
-        const canKnockout = p1Active.card.attacks.some((atk: { damage: string }) => {
-          const damage = parseInt(atk.damage.replace('+', '').split(' ')[0]) || 0;
-          return damage >= p2Active.currentHp;
-        });
-        
-        if (canKnockout) {
-          analysis += '🎯 Puedes noquear al enemigo este turno.\n';
-        } else {
-          analysis += '⚔️ Ambos siguen con vida. Evalúa el intercambio de daños.\n';
-        }
-      }
-      
-      analysis += `\n### Tu Estado\n`;
-      analysis += `- HP: ${p1Active.currentHp}/${p1Active.card.hp}\n`;
-      analysis += `- Energía: ${p1Active.attachedEnergy.join(', ') || 'Ninguna'}\n`;
-      analysis += `- Bench: ${player1.bench.filter(Boolean).length} Pokémon\n`;
-      
-      analysis += `\n### Enemigo\n`;
-      analysis += `- HP: ${p2Active.currentHp}/${p2Active.card.hp}\n`;
-      analysis += `- Prizes restantes: ${p2Active.currentHp > 0 ? player2.prizes.length : 0}\n`;
-    }
-    
-    return analysis;
+
+    return (
+      <div className="quick-analysis">
+        <QuickStat label="Activo Tú" value={player1.active ? `${player1.active.card.name} (${player1.active.currentHp}/${player1.active.card.hp} HP)` : '—'} />
+        <QuickStat label="Activo Rival" value={player2.active ? `${player2.active.card.name} (${player2.active.currentHp}/${player2.active.card.hp} HP)` : '—'} />
+        <QuickStat label="Bench Tú" value={`${player1.bench.filter(Boolean).length}/5 Pokémon`} />
+        <QuickStat label="Prizes" value={`${player1.prizes.length} vs ${player2.prizes.length}`} />
+        <QuickStat label="Mano" value={`${player1.hand.length} cartas`} />
+        <QuickStat label="Deck" value={`${player1.deck.length} restantes`} />
+
+        {player1.active && player2.active && (
+          <div className="quick-knockout">
+            {(() => {
+              const canKO = player1.active.card.attacks.some((atk: { damage: string }) => {
+                const dmg = parseInt(atk.damage.replace(/[^0-9]/g, '')) || 0;
+                return dmg >= player2.active.currentHp;
+              });
+              return canKO
+                ? <span className="ko-yes">🎯 Podés noquear este turno</span>
+                : <span className="ko-no">❌ No podés noquear aún</span>;
+            })()}
+          </div>
+        )}
+      </div>
+    );
   };
+
+  const stateMarkdown = getStateForAI();
 
   return (
     <div className="ai-panel">
       <div className="ai-header">
-        <h3>🤖 Asistente IA</h3>
-        <input
-          type="password"
-          placeholder="HF API Key"
-          value={apiKey}
-          onChange={e => setApiKey(e.target.value)}
-          className="api-key-input"
-        />
+        <h3>📋 Exportar Estado</h3>
+        <p className="ai-subtitle">
+          Copiá el estado actual y pegalo en ChatGPT, Claude, Gemini o cualquier IA para recibir análisis.
+        </p>
       </div>
 
       <div className="tabs">
-        <button 
-          className={activeTab === 'analysis' ? 'active' : ''} 
+        <button
+          className={activeTab === 'export' ? 'active' : ''}
+          onClick={() => setActiveTab('export')}
+        >
+          📤 Exportar
+        </button>
+        <button
+          className={activeTab === 'analysis' ? 'active' : ''}
           onClick={() => setActiveTab('analysis')}
         >
-          Análisis
+          📊 Resumen
         </button>
-        <button 
-          className={activeTab === 'moves' ? 'active' : ''} 
-          onClick={() => setActiveTab('moves')}
+        <button
+          className={activeTab === 'external' ? 'active' : ''}
+          onClick={() => setActiveTab('external')}
         >
-          Movimientos
-        </button>
-        <button 
-          className={activeTab === 'odds' ? 'active' : ''} 
-          onClick={() => setActiveTab('odds')}
-        >
-          Odds
+          🤖 IA Externa
         </button>
       </div>
 
       <div className="tab-content">
+        {activeTab === 'export' && (
+          <div className="export-content">
+            <button
+              onClick={copyStateToClipboard}
+              className={`copy-big-btn ${copied ? 'copied' : ''}`}
+            >
+              {copied ? '✅ ¡Copiado!' : '📋 Copiar Estado Completo'}
+            </button>
+            <p className="export-hint">
+              El markdown incluye: estado del tablero, manos visibles, descartes,
+              contenido de ambos mazos, ataques disponibles, evoluciones posibles, y más.
+            </p>
+            <details className="preview-toggle">
+              <summary>👁️ Vista previa del markdown</summary>
+              <pre className="markdown-preview">{stateMarkdown}</pre>
+            </details>
+          </div>
+        )}
+
         {activeTab === 'analysis' && (
-          <div className="analysis-content">
-            <pre>{quickAnalysis()}</pre>
-            {response?.analysis && <pre className="ai-response">{response.analysis}</pre>}
+          <div className="analysis-full">
+            {quickAnalysis()}
           </div>
         )}
 
-        {activeTab === 'moves' && (
-          <div className="moves-content">
-            {response?.recommendations.map(rec => (
-              <div key={rec.id} className="move-recommendation">
-                <div className="move-header">
-                  <span className="move-name">{rec.move}</span>
-                  <span className="move-ev">EV: {rec.ev}</span>
-                </div>
-                <p className="move-reason">{rec.reason}</p>
+        {activeTab === 'external' && (
+          <div className="external-content">
+            <div className="hf-section">
+              <label className="hf-label">HuggingFace API Key (opcional)</label>
+              <input
+                type="password"
+                placeholder="hf_..."
+                value={apiKey}
+                onChange={e => setApiKey(e.target.value)}
+                className="api-key-input"
+              />
+              <button
+                onClick={analyzeWithHF}
+                disabled={loading || !apiKey}
+                className="analyze-btn"
+              >
+                {loading ? '⏳ Analizando...' : '🔍 Analizar con Llama 3.1'}
+              </button>
+            </div>
+
+            {response && (
+              <div className="hf-results">
+                {response.analysis && (
+                  <div className="result-block">
+                    <h4>📊 Análisis</h4>
+                    <pre>{response.analysis}</pre>
+                  </div>
+                )}
+                {response.recommendations.length > 0 && (
+                  <div className="result-block">
+                    <h4>🎯 Recomendaciones</h4>
+                    {response.recommendations.map(rec => (
+                      <div key={rec.id} className="move-recommendation">
+                        <div className="move-header">
+                          <span className="move-name">{rec.move}</span>
+                          <span className="move-ev">EV: {rec.ev}</span>
+                        </div>
+                        <p className="move-reason">{rec.reason}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {response.odds.win > 0 && (
+                  <div className="result-block">
+                    <h4>⚖️ Probabilidades</h4>
+                    <div className="odds-bar">
+                      <div className="odds-win" style={{ width: `${response.odds.win}%` }}>
+                        Ganar: {response.odds.win}%
+                      </div>
+                      <div className="odds-lose" style={{ width: `${response.odds.lose}%` }}>
+                        Perder: {response.odds.lose}%
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
-            ))}
-            {!response?.recommendations.length && (
-              <p className="no-data">Ejecuta análisis para ver recomendaciones</p>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'odds' && (
-          <div className="odds-content">
-            {response ? (
-              <>
-                <div className="odds-bar">
-                  <div 
-                    className="odds-win" 
-                    style={{ width: `${response.odds.win}%` }}
-                  >
-                    Ganar: {response.odds.win}%
-                  </div>
-                  <div 
-                    className="odds-lose"
-                    style={{ width: `${response.odds.lose}%` }}
-                  >
-                    Perder: {response.odds.lose}%
-                  </div>
-                </div>
-              </>
-            ) : (
-              <p className="no-data">Sin datos aún</p>
             )}
           </div>
         )}
       </div>
+    </div>
+  );
+}
 
-      <div className="ai-actions">
-        <button onClick={copyStateToClipboard} className="copy-btn">
-          📋 Copiar Estado
-        </button>
-        <button onClick={analyze} disabled={loading} className="analyze-btn">
-          {loading ? '⏳ Analizando...' : '🔍 Analizar con IA'}
-        </button>
-      </div>
+function QuickStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="quick-stat">
+      <span className="qs-label">{label}</span>
+      <span className="qs-value">{value}</span>
     </div>
   );
 }

@@ -10,6 +10,7 @@ import type {
   Scenario,
   DeckPreset
 } from '../types';
+import { exportStateToMarkdown } from '../services/stateExporter';
 
 interface GameStore {
   gameState: GameState;
@@ -135,12 +136,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const p1Cards = [
       ...player1Deck.pokemon.map(p => ({ ...p, id: uuidv4() })),
       ...player1Deck.trainers.map(t => ({ ...t, id: uuidv4() })),
-      ...player1Deck.energies.map(e => ({ type: 'energy', energyType: e.type, quantity: e.quantity, id: uuidv4() })),
+      ...player1Deck.energies.flatMap(e => Array.from({ length: e.quantity }, () => ({ name: `${e.type} Energy`, type: e.type, quantity: 1, id: uuidv4() }))),
     ];
     const p2Cards = [
       ...player2Deck.pokemon.map(p => ({ ...p, id: uuidv4() })),
       ...player2Deck.trainers.map(t => ({ ...t, id: uuidv4() })),
-      ...player2Deck.energies.map(e => ({ type: 'energy', energyType: e.type, quantity: e.quantity, id: uuidv4() })),
+      ...player2Deck.energies.flatMap(e => Array.from({ length: e.quantity }, () => ({ name: `${e.type} Energy`, type: e.type, quantity: 1, id: uuidv4() }))),
     ];
     
     const shuffle = (arr: any[]) => [...arr].sort(() => Math.random() - 0.5);
@@ -211,7 +212,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const allCards = [
       ...pokemonList.map(p => ({ ...p, id: uuidv4() })),
       ...trainers.map(t => ({ ...t, id: uuidv4() })),
-      ...energies.map(e => ({ type: 'energy', energyType: e.type, quantity: e.quantity, id: uuidv4() })),
+      ...energies.flatMap(e => Array.from({ length: e.quantity }, () => ({ name: `${e.type} Energy`, type: e.type, quantity: 1, id: uuidv4() }))),
     ];
     
     const shuffled = [...allCards].sort(() => Math.random() - 0.5);
@@ -594,115 +595,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     localStorage.setItem('pokemon-scenarios', JSON.stringify(get().scenarios));
   },
 
-  getStateForAI: () => {
-    const { gameState } = get();
-    const { player1, player2, currentPlayer, turn } = gameState;
-    
-    // Mapeo de energías en español
-    const energyNames: Record<string, string> = {
-      fire: 'Fuego',
-      water: 'Agua',
-      grass: 'Planta',
-      electric: 'Rayo',
-      psychic: 'Psiquica',
-      fighting: 'Lucha',
-      darkness: 'Oscuridad',
-      metal: 'Metal',
-      dragon: 'Dragon',
-      fairy: 'Hada',
-      normal: 'Normal',
-      special: 'Especial'
-    };
-    
-    const formatEnergy = (energies: string[]) => 
-      energies.length > 0 
-        ? energies.map(e => energyNames[e] || e).join(', ')
-        : 'Ninguna';
-    
-    // Verificar si se puede usar un ataque
-    const canUseAttack = (attack: any, attachedEnergy: string[]) => {
-      if (!attack || !attack.cost || attack.cost.length === 0) return false;
-      
-      // Contar energías disponibles
-      const available = [...attachedEnergy];
-      
-      // Para cada costo requerido
-      for (const cost of attack.cost) {
-        if (cost === 'normal' || cost === 'any') {
-          // Normal puede ser cualquier energía - buscar la primera disponible
-          const idx = available.findIndex(() => true);
-          if (idx === -1) return false; // No hay energía disponible
-          available.splice(idx, 1); // Usar esa energía
-        } else {
-          // Energía específica - buscar en las attached
-          const idx = available.indexOf(cost);
-          if (idx === -1) return false; // No tiene esa energía
-          available.splice(idx, 1); // Usar esa energía
-        }
-      }
-      return true;
-    };
-    
-    // Mapeo para mostrar costos en español
-    const costNames: Record<string, string> = {
-      normal: 'Colorless',
-      psychic: 'Psiquica',
-      fire: 'Fuego',
-      water: 'Agua',
-      grass: 'Planta',
-      electric: 'Rayo',
-      fighting: 'Lucha',
-      darkness: 'Oscuridad',
-      metal: 'Metal',
-      dragon: 'Dragon',
-      fairy: 'Hada',
-    };
-    
-    const formatPokemon = (p: PokemonInstance | null, showAttacks = false) => {
-      if (!p) return 'Ninguno';
-      
-      let info = `${p.card.name} (${p.currentHp}/${p.card.hp} HP) - Energia: ${formatEnergy(p.attachedEnergy)}`;
-      
-      if (showAttacks && p.card.attacks && p.card.attacks.length > 0) {
-        const availableAttacks = p.card.attacks.map(attack => {
-          const canUse = canUseAttack(attack, p.attachedEnergy);
-          const costStr = attack.cost 
-            ? attack.cost.map(c => costNames[c] || c).join(' + ') 
-            : '?';
-          return `  - ${attack.name}: ${attack.damage} dano (${costStr}) ${canUse ? '✅' : '❌'}`;
-        }).join('\n');
-        info += `\nAtaques:\n${availableAttacks}`;
-      }
-      
-      return info;
-    };
-
-    const formatBench = (bench: (PokemonInstance | null)[]) => 
-      bench.filter(Boolean).map((p, i) => `${i + 1}: ${formatPokemon(p)}`).join('\n') || 'Vacio';
-
-    const formatPrizes = (prizes: any[]) => 
-      prizes.map(p => p.name || 'Carta').join(', ') || 'Ninguno';
-
-    return `
-=== ESTADO DE BATALLA POKEMON TCG ===
-
-Turno: ${turn}
-Jugador Actual: ${currentPlayer === 'player1' ? 'Jugador 1' : 'Jugador 2'}
-
---- TU (${currentPlayer === 'player1' ? 'Jugador 1' : 'Jugador 2'}) ---
-Activo: ${formatPokemon(player1.active, true)}
-Bench: 
-${formatBench(player1.bench)}
-Mano: ${player1.hand.map(c => c.name).join(', ') || 'Vacia'}
-Deck: ${player1.deck.length} cartas
-Descarte: ${player1.discardPile.length} cartas
-Prizes: ${formatPrizes(player1.prizes)}
-
---- OPONENTE (${currentPlayer === 'player2' ? 'Jugador 1' : 'Jugador 2'}) ---
-Activo: ${formatPokemon(player2.active, true)}
-Bench:
-${formatBench(player2.bench)}
-Prizes: ${formatPrizes(player2.prizes)}
-`;
-  },
+        getStateForAI: () => {
+        const { gameState, player1Deck, player2Deck } = get();
+        return exportStateToMarkdown(gameState, player1Deck, player2Deck);
+      },
 }));

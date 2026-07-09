@@ -167,11 +167,14 @@ export function parseDeckList(text: string): { pokemon: any[], trainers: any[], 
     'Ultra Ball', 'PokePad', "Professor's Research", 'Nest Ball', 'Switch',
     'Rare Candy', 'Super Rod', 'Fire Crystal', 'Arven', 'Crisice Rider',
     'Poké Pad', 'Secret Box', 'Technical Machine', 'Bravery Charm', 'Spikemuth Gym', 'Artazon', 'Air Balloon', "Marnie's",
-    'Poffin', 'Gym', 'Marnie', 'Pokemon Center Lady', 'Rai', 'Otmane', 'Kofu', 'Dominic', 'Kieran'
+    'Poffin', 'Gym', 'Marnie', 'Pokemon Center Lady', 'Rai', 'Otmane', 'Kofu', 'Dominic', 'Kieran',
+    'Crispin', 'Dawn', 'Crushing Hammer', 'Unfair Stamp', 'Special Red Card', 'Handheld Fan', "Team Rocket's Watchtower"
   ];
   
   // Trainer card prefixes that indicate it's definitely a trainer
-  const trainerPrefixes = ["Lillie's", "Boss's", 'Iono', 'Arven', 'Hilda', "Professor'", 'Nest', 'Ultra', 'Rare', 'Super', 'Counter', 'Buddy-Buddy', 'Night', 'Jamming', 'Switch', 'Fire Crystal', 'Technical', 'Bravery', 'Spikemuth', 'Artazon', 'Air Balloon', 'Pokemon Center', 'Pokémon Center'];
+  const trainerPrefixes = ["Lillie's", "Boss's", 'Iono', 'Arven', 'Hilda', "Professor'", 'Nest', 'Ultra', 'Rare', 'Super', 'Counter', 'Buddy-Buddy', 'Night', 'Jamming', 'Switch', 'Fire Crystal', 'Technical', 'Bravery', 'Spikemuth', 'Artazon', 'Air Balloon', 'Pokemon Center', 'Pokémon Center',
+    'Crispin', 'Dawn', 'Crushing', 'Unfair', 'Red Card', 'Handheld', 'Team Rocket', "Rocket's"
+  ];
   
   for (const line of lines) {
     const trimmed = line.trim();
@@ -259,8 +262,10 @@ export function parseDeckList(text: string): { pokemon: any[], trainers: any[], 
         const isSupporter = name.includes('Boss') || name.includes("Lillie") || name.includes('Iono') || 
                            name.includes('Hilda') || name.includes('Arven') || name.includes('Professor') || 
                            name.includes('Marnie') || name.includes('Rai') || name.includes('Otmane') ||
-                           name.includes('Kofu') || name.includes('Dominic') || name.includes('Kieran');
-        const isStadium = name.includes('Gym') || name.includes('Stadium') || name.includes('Artazon') || name.includes('Pokemon Center');
+                           name.includes('Kofu') || name.includes('Dominic') || name.includes('Kieran') ||
+                               name.includes('Crispin') || name.includes('Dawn');
+        const isStadium = name.includes('Gym') || name.includes('Stadium') || name.includes('Artazon') || name.includes('Pokemon Center') ||
+                             name.includes('Tower') || name.includes('Watchtower');
         trainers.push({ 
           name, 
           type: isStadium ? 'stadium' : (isSupporter ? 'supporter' : 'item'),
@@ -369,9 +374,12 @@ export async function parseDeckListWithApi(
     'Ultra Ball', 'PokePad', "Professor's Research", 'Nest Ball', 'Switch',
     'Rare Candy', 'Super Rod', 'Fire Crystal', 'Arven', 'Crisice Rider',
     'Poké Pad', 'Secret Box', 'Technical Machine', 'Bravery Charm', 'Spikemuth Gym', 'Artazon', 'Air Balloon', "Marnie's",
-    'Poffin', 'Gym', 'Marnie', 'Pokemon Center Lady', 'Rai', 'Otmane', 'Kofu', 'Dominic', 'Kieran'
+    'Poffin', 'Gym', 'Marnie', 'Pokemon Center Lady', 'Rai', 'Otmane', 'Kofu', 'Dominic', 'Kieran',
+    'Crispin', 'Dawn', 'Crushing Hammer', 'Unfair Stamp', 'Special Red Card', 'Handheld Fan', "Team Rocket's Watchtower"
   ];
-  const trainerPrefixes = ["Lillie's", "Boss's", 'Iono', 'Arven', 'Hilda', "Professor'", 'Nest', 'Ultra', 'Rare', 'Super', 'Counter', 'Buddy-Buddy', 'Night', 'Jamming', 'Switch', 'Fire Crystal', 'Technical', 'Bravery', 'Spikemuth', 'Artazon', 'Air Balloon', 'Pokemon Center', 'Pokémon Center'];
+  const trainerPrefixes = ["Lillie's", "Boss's", 'Iono', 'Arven', 'Hilda', "Professor'", 'Nest', 'Ultra', 'Rare', 'Super', 'Counter', 'Buddy-Buddy', 'Night', 'Jamming', 'Switch', 'Fire Crystal', 'Technical', 'Bravery', 'Spikemuth', 'Artazon', 'Air Balloon', 'Pokemon Center', 'Pokémon Center',
+    'Crispin', 'Dawn', 'Crushing', 'Unfair', 'Red Card', 'Handheld', 'Team Rocket', "Rocket's"
+  ];
   
   // First pass: identify all cards
   for (const line of lines) {
@@ -444,7 +452,19 @@ export async function parseDeckListWithApi(
     
     if (isLikelyTrainer) {
       for (let i = 0; i < quantity; i++) {
-        trainers.push({ name, type: 'item', description: '', rarity: 'uncommon' });
+        const isSupporter = name.includes('Boss') || name.includes("Lillie") || name.includes('Iono') || 
+                           name.includes('Hilda') || name.includes('Arven') || name.includes('Professor') || 
+                           name.includes('Marnie') || name.includes('Rai') || name.includes('Otmane') ||
+                           name.includes('Kofu') || name.includes('Dominic') || name.includes('Kieran') ||
+                           name.includes('Crispin') || name.includes('Dawn');
+        const isStadium = name.includes('Gym') || name.includes('Stadium') || name.includes('Artazon') || name.includes('Pokemon Center') ||
+                         name.includes('Tower') || name.includes('Watchtower');
+        trainers.push({ 
+          name, 
+          type: isStadium ? 'stadium' : (isSupporter ? 'supporter' : 'item'),
+          description: '', 
+          rarity: 'uncommon' 
+        });
       }
       continue;
     }
