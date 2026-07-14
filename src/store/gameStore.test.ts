@@ -95,16 +95,16 @@ beforeEach(() => {
 });
 
 describe('startGame', () => {
-  it('reparte 7 cartas en mano y 6 en prizes', () => {
+  it('carga todas las cartas del mazo al deck pool', () => {
     const store = useGameStore.getState();
     store.setPlayer1Deck(fullDeck);
     store.setPlayer2Deck(fullDeck);
     store.startGame();
 
     const { player1 } = useGameStore.getState().gameState;
-    expect(player1.hand).toHaveLength(7);
-    expect(player1.prizes).toHaveLength(6);
-    expect(player1.deck.length).toBeGreaterThan(0);
+    expect(player1.hand).toHaveLength(0);
+    expect(player1.prizes).toHaveLength(0);
+    expect(player1.deck.length).toBe(60);
   });
 
   it('falla silenciosamente si no hay mazos seleccionados', () => {
@@ -115,22 +115,25 @@ describe('startGame', () => {
     expect(state.phase).toBe('setup'); // unchanged
   });
 
-  it('pone el phase en turn', () => {
-    useGameStore.getState().setPlayer1Deck(fullDeck);
-    useGameStore.getState().setPlayer2Deck(fullDeck);
-    useGameStore.getState().startGame();
-
-    expect(useGameStore.getState().gameState.phase).toBe('turn');
-  });
-
-  it('total de cartas distribuidas suma 60 por jugador', () => {
+  it('deja mano, premios y descarte vacíos', () => {
     useGameStore.getState().setPlayer1Deck(fullDeck);
     useGameStore.getState().setPlayer2Deck(fullDeck);
     useGameStore.getState().startGame();
 
     const { player1 } = useGameStore.getState().gameState;
-    const total = player1.hand.length + player1.prizes.length + player1.deck.length;
-    expect(total).toBe(60);
+    expect(player1.hand).toHaveLength(0);
+    expect(player1.prizes).toHaveLength(0);
+    expect(player1.discardPile).toHaveLength(0);
+    expect(player1.active).toBeNull();
+  });
+
+  it('total de cartas en deck suma 60 por jugador', () => {
+    useGameStore.getState().setPlayer1Deck(fullDeck);
+    useGameStore.getState().setPlayer2Deck(fullDeck);
+    useGameStore.getState().startGame();
+
+    const { player1 } = useGameStore.getState().gameState;
+    expect(player1.deck.length).toBe(60);
   });
 
   it('crea cartas de energía con nombre cuando el preset lo tiene', () => {
@@ -149,32 +152,6 @@ describe('startGame', () => {
     expect(spikyCards.length + mistCards.length + psychicCards.length).toBe(10);
     expect(spikyCards.length).toBeGreaterThan(0);
     expect(mistCards.length).toBeGreaterThan(0);
-  });
-});
-
-describe('drawCards', () => {
-  it('roba cartas del deck a la mano', () => {
-    useGameStore.getState().setPlayer1Deck(fullDeck);
-    useGameStore.getState().setPlayer2Deck(fullDeck);
-    useGameStore.getState().startGame();
-
-    const before = useGameStore.getState().gameState.player1.hand.length;
-    useGameStore.getState().drawCards('player1', 2);
-    const after = useGameStore.getState().gameState.player1.hand.length;
-
-    expect(after).toBe(before + 2);
-  });
-
-  it('reduce el deck en la cantidad robada', () => {
-    useGameStore.getState().setPlayer1Deck(fullDeck);
-    useGameStore.getState().setPlayer2Deck(fullDeck);
-    useGameStore.getState().startGame();
-
-    const before = useGameStore.getState().gameState.player1.deck.length;
-    useGameStore.getState().drawCards('player1', 3);
-    const after = useGameStore.getState().gameState.player1.deck.length;
-
-    expect(after).toBe(before - 3);
   });
 });
 
@@ -356,77 +333,6 @@ describe('setStatus', () => {
   });
 });
 
-describe('processMulligan / checkMulligan', () => {
-  it('checkMulligan devuelve true si no hay básicos en mano', () => {
-    useGameStore.setState(s => ({
-      gameState: {
-        ...s.gameState,
-        player1: {
-          ...s.gameState.player1,
-          hand: [
-            { name: 'Rare Candy', type: 'item' as const, description: '', rarity: 'uncommon' as const, id: '1' },
-            { name: 'Ultra Ball', type: 'item' as const, description: '', rarity: 'uncommon' as const, id: '2' },
-          ],
-        },
-      },
-    }));
-
-    expect(useGameStore.getState().checkMulligan('player1')).toBe(true);
-  });
-
-  it('checkMulligan devuelve false si hay al menos un básico', () => {
-    useGameStore.setState(s => ({
-      gameState: {
-        ...s.gameState,
-        player1: {
-          ...s.gameState.player1,
-          hand: [
-            { name: 'Rare Candy', type: 'item' as const, description: '', rarity: 'uncommon' as const, id: '1' },
-            { name: 'Dreepy', stage: 'basic' as const, hp: 70, type: 'psychic', attacks: [], retreatCost: 1, rarity: 'common' as const, id: '2' },
-          ],
-        },
-      },
-    }));
-
-    expect(useGameStore.getState().checkMulligan('player1')).toBe(false);
-  });
-
-  it('processMulligan mezcla mano + deck y roba 7 nuevas', () => {
-    const initialHand = [
-      { name: 'Rare Candy', type: 'item' as const, description: '', rarity: 'uncommon' as const, id: '1' },
-      { name: 'Ultra Ball', type: 'item' as const, description: '', rarity: 'uncommon' as const, id: '2' },
-    ];
-    const initialDeck = [
-      { name: 'Dreepy', stage: 'basic' as const, hp: 70, type: 'psychic', attacks: [], retreatCost: 1, rarity: 'common' as const, id: '3' },
-      { name: 'Dreepy', stage: 'basic' as const, hp: 70, type: 'psychic', attacks: [], retreatCost: 1, rarity: 'common' as const, id: '4' },
-      { name: 'Dreepy', stage: 'basic' as const, hp: 70, type: 'psychic', attacks: [], retreatCost: 1, rarity: 'common' as const, id: '5' },
-      { name: 'Dreepy', stage: 'basic' as const, hp: 70, type: 'psychic', attacks: [], retreatCost: 1, rarity: 'common' as const, id: '6' },
-      { name: 'Dreepy', stage: 'basic' as const, hp: 70, type: 'psychic', attacks: [], retreatCost: 1, rarity: 'common' as const, id: '7' },
-      { name: 'Dreepy', stage: 'basic' as const, hp: 70, type: 'psychic', attacks: [], retreatCost: 1, rarity: 'common' as const, id: '8' },
-      { name: 'Dreepy', stage: 'basic' as const, hp: 70, type: 'psychic', attacks: [], retreatCost: 1, rarity: 'common' as const, id: '9' },
-    ];
-    
-    useGameStore.setState(s => ({
-      gameState: {
-        ...s.gameState,
-        player1: {
-          ...s.gameState.player1,
-          hand: initialHand,
-          deck: initialDeck,
-        },
-      },
-    }));
-
-    useGameStore.getState().processMulligan('player1');
-
-    const state = useGameStore.getState().gameState.player1;
-    expect(state.hand).toHaveLength(7);
-    expect(useGameStore.getState().gameState.mulligan.player1).toBe(true);
-    // Total cards should still be conserved: 2+7 = 9 cards total
-    expect(state.hand.length + state.deck.length).toBe(9);
-  });
-});
-
 describe('setHand / setDeck / setDiscard / setPrizes', () => {
   it('setHand reemplaza la mano', () => {
     const cards = [{ name: 'Card1', type: 'item' as const, description: '', rarity: 'uncommon' as const, id: '1' }];
@@ -468,29 +374,6 @@ describe('saveScenario / loadScenario', () => {
     expect(useGameStore.getState().gameState.phase).toBe('setup');
     
     useGameStore.getState().loadScenario(scenarios[0].id);
-    expect(useGameStore.getState().gameState.phase).toBe('turn');
-  });
-});
-
-describe('turn management', () => {
-  it('setCurrentPlayer cambia el jugador activo', () => {
-    useGameStore.getState().setCurrentPlayer('player2');
-    expect(useGameStore.getState().gameState.currentPlayer).toBe('player2');
-  });
-
-  it('incrementTurn aumenta el turno y vuelve a phase turn', () => {
-    useGameStore.getState().incrementTurn();
-    const state = useGameStore.getState().gameState;
-    expect(state.turn).toBe(2);
-    expect(state.phase).toBe('turn');
-  });
-
-  it('nextPhase cicla entre fases', () => {
-    useGameStore.setState(s => ({ gameState: { ...s.gameState, phase: 'setup' } }));
-    useGameStore.getState().nextPhase();
-    expect(useGameStore.getState().gameState.phase).toBe('draw');
-
-    useGameStore.getState().nextPhase();
     expect(useGameStore.getState().gameState.phase).toBe('turn');
   });
 });

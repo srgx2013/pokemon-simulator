@@ -5,7 +5,6 @@ import type {
   PlayerState, 
   PokemonInstance, 
   PokemonCard, 
-  EnergyType,
   StatusCondition,
   Scenario,
   DeckPreset
@@ -20,15 +19,9 @@ interface GameStore {
   player1Deck: DeckPreset | null;
   player2Deck: DeckPreset | null;
   
-  initializeGame: (pokemonList: PokemonCard[], trainers: any[], energies: any[]) => void;
   setPlayer1Deck: (deck: DeckPreset | null) => void;
   setPlayer2Deck: (deck: DeckPreset | null) => void;
   startGame: () => void;
-  checkMulligan: (player: 'player1' | 'player2') => boolean;
-  processMulligan: (player: 'player1' | 'player2') => void;
-  setCurrentPlayer: (player: 'player1' | 'player2') => void;
-  nextPhase: () => void;
-  incrementTurn: () => void;
   
   setActivePokemon: (player: 'player1' | 'player2', pokemon: PokemonInstance | null) => void;
   setBenchPokemon: (player: 'player1' | 'player2', position: number, pokemon: PokemonInstance | null) => void;
@@ -42,10 +35,11 @@ interface GameStore {
   removeCustomDeck: (id: string) => void;
   loadCustomDecks: () => void;
   
-  drawCards: (player: 'player1' | 'player2', count: number) => void;
+  placePokemonFromDeck: (player: 'player1' | 'player2', position: number, cardIndex: number) => void;
+  
   addToHand: (player: 'player1' | 'player2', cards: any[]) => void;
   setHand: (player: 'player1' | 'player2', cards: any[]) => void;
-addToDiscard: (player: 'player1' | 'player2', cards: any[]) => void;
+  addToDiscard: (player: 'player1' | 'player2', cards: any[]) => void;
   setDiscard: (player: 'player1' | 'player2', cards: any[]) => void;
   setDeck: (player: 'player1' | 'player2', cards: any[]) => void;
   setPrizes: (player: 'player1' | 'player2', cards: any[]) => void;
@@ -91,97 +85,29 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   setPlayer1Deck: (deck) => set({ player1Deck: deck }),
   setPlayer2Deck: (deck) => set({ player2Deck: deck }),
-  
-  // Helper to check if hand has basic Pokemon
-  checkMulligan: (player: 'player1' | 'player2') => {
-    const state = get().gameState;
-    const playerHand = player === 'player1' ? state.player1.hand : state.player2.hand;
-    const hasBasic = playerHand.some((c: any) => c && typeof c === 'object' && 'hp' in c && c.stage === 'basic');
-    return !hasBasic;
-  },
-  
-  // Process mulligan - shuffle hand back into deck and draw new hand
-  processMulligan: (player: 'player1' | 'player2') => {
-    const state = get().gameState;
-    const playerData = player === 'player1' ? state.player1 : state.player2;
-    
-    // Combine hand + deck
-    const allCards = [...playerData.hand, ...playerData.deck];
-    const shuffled = [...allCards].sort(() => Math.random() - 0.5);
-    
-    // Draw 7 new cards
-    const newHand = shuffled.slice(0, 7);
-    const newDeck = shuffled.slice(7);
-    
-    set({
-      gameState: {
-        ...state,
-        [player]: {
-          ...playerData,
-          hand: newHand,
-          deck: newDeck,
-        },
-        mulligan: {
-          ...state.mulligan,
-          [player]: true,
-        },
-      },
-    });
-  },
-  
+
   startGame: () => {
     const { player1Deck, player2Deck } = get();
     if (!player1Deck || !player2Deck) return;
     
-    const p1Cards = [
-      ...player1Deck.pokemon.map(p => ({ ...p, id: uuidv4() })),
-      ...player1Deck.trainers.map(t => ({ ...t, id: uuidv4() })),
-      ...player1Deck.energies.flatMap(e => Array.from({ length: e.quantity }, () => ({ name: e.name || `${e.type} Energy`, type: e.type, quantity: 1, id: uuidv4() }))),
+    const buildPool = (deck: DeckPreset) => [
+      ...deck.pokemon.map(p => ({ ...p, id: uuidv4() })),
+      ...deck.trainers.map(t => ({ ...t, id: uuidv4() })),
+      ...deck.energies.flatMap(e => Array.from({ length: e.quantity }, () => ({ name: e.name || `${e.type} Energy`, type: e.type === 'special' ? 'special' as any : e.type, energyType: e.type, quantity: 1, id: uuidv4() }))),
     ];
-    const p2Cards = [
-      ...player2Deck.pokemon.map(p => ({ ...p, id: uuidv4() })),
-      ...player2Deck.trainers.map(t => ({ ...t, id: uuidv4() })),
-      ...player2Deck.energies.flatMap(e => Array.from({ length: e.quantity }, () => ({ name: e.name || `${e.type} Energy`, type: e.type, quantity: 1, id: uuidv4() }))),
-    ];
-    
-    const shuffle = (arr: any[]) => [...arr].sort(() => Math.random() - 0.5);
-    
-    const p1Shuffled = shuffle(p1Cards);
-    const p2Shuffled = shuffle(p2Cards);
-    
-    const p1Prizes = p1Shuffled.slice(0, 6);
-    const p1Deck = p1Shuffled.slice(6);
-    const p1Hand = p1Deck.slice(0, 7);
-    const p1Remaining = p1Deck.slice(7);
-    
-    const p2Prizes = p2Shuffled.slice(0, 6);
-    const p2Deck = p2Shuffled.slice(6);
-    const p2Hand = p2Deck.slice(0, 7);
-    const p2Remaining = p2Deck.slice(7);
     
     set({
       gameState: {
-        ...get().gameState,
+        ...createInitialGameState(),
         player1: {
           ...createEmptyPlayerState(),
-          deck: p1Remaining,
-          prizes: p1Prizes,
-          hand: p1Hand,
+          deck: buildPool(player1Deck),
         },
         player2: {
           ...createEmptyPlayerState(),
-          deck: p2Remaining,
-          prizes: p2Prizes,
-          hand: p2Hand,
+          deck: buildPool(player2Deck),
         },
-        phase: 'turn',
-        currentPlayer: 'player1',
-        turn: 1,
-        mulligan: {
-          player1: false,
-          player2: false,
-        },
-      }
+      },
     });
   },
 
@@ -217,83 +143,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  initializeGame: (pokemonList, trainers, energies) => {
-    const allCards = [
-      ...pokemonList.map(p => ({ ...p, id: uuidv4() })),
-      ...trainers.map(t => ({ ...t, id: uuidv4() })),
-      ...energies.flatMap(e => Array.from({ length: e.quantity }, () => ({ name: e.name || `${e.type} Energy`, type: e.type, quantity: 1, id: uuidv4() }))),
-    ];
-    
-    const shuffled = [...allCards].sort(() => Math.random() - 0.5);
-    
-    const prizes = shuffled.slice(0, 6);
-    const deck = shuffled.slice(6);
-    const playerHand = deck.slice(0, 7);
-    const remainingDeck = deck.slice(7);
-    
-    set(state => ({
-      gameState: {
-        ...state.gameState,
-        player1: {
-          ...createEmptyPlayerState(),
-          deck: remainingDeck,
-          prizes,
-          hand: playerHand,
-        },
-        player2: {
-          ...createEmptyPlayerState(),
-          deck: [...remainingDeck].sort(() => Math.random() - 0.5),
-          prizes: [...prizes].sort(() => Math.random() - 0.5),
-        },
-        phase: 'turn',
-      },
-    }));
-  },
-
-  setCurrentPlayer: (player) => {
-    set(state => ({
-      gameState: { ...state.gameState, currentPlayer: player },
-    }));
-  },
-
-  nextPhase: () => {
-    set(state => {
-      const phases: GameState['phase'][] = ['setup', 'draw', 'turn', 'end'];
-      const currentIndex = phases.indexOf(state.gameState.phase);
-      const nextIndex = (currentIndex + 1) % phases.length;
-      return {
-        gameState: {
-          ...state.gameState,
-          phase: phases[nextIndex],
-        },
-      };
-    });
-  },
-
-  incrementTurn: () => {
-    set(state => ({
-      gameState: {
-        ...state.gameState,
-        turn: state.gameState.turn + 1,
-        phase: 'turn',
-      },
-    }));
-  },
-
   setActivePokemon: (player, pokemon) => {
     set(state => {
       const playerState = player === 'player1' ? state.gameState.player1 : state.gameState.player2;
-      const updatedPlayer = {
-        ...playerState,
-        active: pokemon,
-        bench: playerState.bench.map(p => 
-          p?.id === pokemon?.id ? { ...p, isActive: true } : { ...p, isActive: false }
-        ),
-      };
       return {
         gameState: {
           ...state.gameState,
-          [player]: updatedPlayer,
+          [player]: {
+            ...playerState,
+            active: pokemon,
+          },
         },
       };
     });
@@ -310,6 +169,65 @@ export const useGameStore = create<GameStore>((set, get) => ({
           [player]: { ...playerState, bench: newBench },
         },
       };
+    });
+  },
+
+  placePokemonFromDeck: (player, position, cardIndex) => {
+    set(state => {
+      const playerState = player === 'player1' ? state.gameState.player1 : state.gameState.player2;
+      const card = playerState.deck[cardIndex];
+      if (!card || !('hp' in card)) return state;
+      
+      const pokemonCard: PokemonCard = {
+        id: uuidv4(),
+        name: card.name,
+        stage: (card as any).stage || 'basic',
+        hp: card.hp || 100,
+        type: (card as any).type || 'psychic',
+        attacks: (card as any).attacks || [],
+        weakness: (card as any).weakness,
+        retreatCost: (card as any).retreatCost || 1,
+        rarity: (card as any).rarity || 'common',
+      };
+      
+      const instance: PokemonInstance = {
+        id: uuidv4(),
+        card: pokemonCard,
+        currentHp: pokemonCard.hp,
+        attachedEnergy: [],
+        status: 'none',
+        damage: 0,
+        isActive: position === -1,
+        benchPosition: position >= 0 ? position : undefined,
+      };
+      
+      const newDeck = playerState.deck.filter((_, i) => i !== cardIndex);
+      
+      if (position === -1) {
+        return {
+          gameState: {
+            ...state.gameState,
+            [player]: {
+              ...playerState,
+              active: instance,
+              deck: newDeck,
+            },
+          },
+        };
+      } else {
+        const newBench = [...playerState.bench];
+        newBench[position] = instance;
+        return {
+          gameState: {
+            ...state.gameState,
+            [player]: {
+              ...playerState,
+              bench: newBench,
+              deck: newDeck,
+            },
+          },
+        };
+      }
     });
   },
 
@@ -335,6 +253,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   addEnergy: (player, pokemonId, energy) => {
     set(state => {
       const playerState = player === 'player1' ? state.gameState.player1 : state.gameState.player2;
+      
       const updateInstance = (p: PokemonInstance | null): PokemonInstance | null => 
         p?.id === pokemonId ? { ...p, attachedEnergy: [...p.attachedEnergy, energy] } : p;
       
@@ -356,7 +275,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const playerState = player === 'player1' ? state.gameState.player1 : state.gameState.player2;
       const updateInstance = (p: PokemonInstance | null): PokemonInstance | null => {
         if (p?.id !== pokemonId) return p;
-        // Remover exactamente 1 copia del tipo de energia especificado
         const idx = p.attachedEnergy.indexOf(energy);
         if (idx === -1) return p;
         return {
@@ -410,24 +328,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
             ...playerState,
             active: updateInstance(playerState.active),
             bench: playerState.bench.map(updateInstance),
-          },
-        },
-      };
-    });
-  },
-
-  drawCards: (player, count) => {
-    set(state => {
-      const playerState = player === 'player1' ? state.gameState.player1 : state.gameState.player2;
-      const deck = [...playerState.deck];
-      const drawn = deck.splice(0, count);
-      return {
-        gameState: {
-          ...state.gameState,
-          [player]: {
-            ...playerState,
-            deck,
-            hand: [...playerState.hand, ...drawn],
           },
         },
       };
@@ -603,8 +503,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     localStorage.setItem('pokemon-scenarios', JSON.stringify(get().scenarios));
   },
 
-        getStateForAI: () => {
-        const { gameState, player1Deck, player2Deck } = get();
-        return exportStateToMarkdown(gameState, player1Deck, player2Deck);
-      },
+  getStateForAI: () => {
+    const { gameState, player1Deck, player2Deck } = get();
+    return exportStateToMarkdown(gameState, player1Deck, player2Deck);
+  },
 }));
