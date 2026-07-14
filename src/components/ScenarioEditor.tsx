@@ -81,7 +81,7 @@ export function ScenarioEditor({ player }: Props) {
         ...selectedDeck.pokemon.map(c => ({ ...c, category: 'pokemon' })),
         ...selectedDeck.trainers.map(c => ({ ...c, category: 'trainer' })),
         ...(selectedDeck.energies || []).flatMap(e => 
-          Array(e.quantity).fill({ name: e.type + ' Energy', type: 'energy', energyType: e.type, category: 'energy' })
+          Array(e.quantity).fill({ name: e.name || (e.type + ' Energy'), type: 'energy', energyType: e.type, category: 'energy' })
         ),
       ]
     : [];

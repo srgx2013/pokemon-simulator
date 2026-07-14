@@ -14,7 +14,9 @@ interface AIResponse {
 export function AIPanel() {
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<AIResponse | null>(null);
-  const [apiKey, setApiKey] = useState('');
+  const [apiKey, setApiKey] = useState(
+    () => import.meta.env.VITE_NVIDIA_API_KEY || sessionStorage.getItem('nvidia-api-key') || ''
+  );
   const [activeTab, setActiveTab] = useState<'export' | 'analysis' | 'external'>('export');
   const [copied, setCopied] = useState(false);
 
@@ -236,7 +238,7 @@ ODDS: Win: X% | Lose: Y% | Draw: Z%
                 type="password"
                 placeholder="nvapi-..."
                 value={apiKey}
-                onChange={e => setApiKey(e.target.value)}
+                onChange={e => { const v = e.target.value; setApiKey(v); try { sessionStorage.setItem('nvidia-api-key', v); } catch {} }}
                 className="api-key-input"
               />
               <div className="model-select-row">

@@ -188,9 +188,8 @@ export function parseDeckList(text: string): { pokemon: any[], trainers: any[], 
         trimmed.toLowerCase() === 'trainers:' ||
         trimmed.toLowerCase() === 'energy:') continue;
     
-    // Check if this is an energy card first
-    const isEnergy = energyKeywords.some(e => trimmed.toLowerCase().includes(e.toLowerCase())) && 
-                     trimmed.toLowerCase().includes('energy');
+    // Cualquier carta con "Energy" en el nombre es energía
+    const isEnergy = trimmed.toLowerCase().includes('energy');
     
     if (isEnergy) {
       // Pattern: "4 Psychic Energy" or "4 Psychic Energy MEE 7" or "9 Darkness Energy MEE 7"
@@ -214,9 +213,12 @@ export function parseDeckList(text: string): { pokemon: any[], trainers: any[], 
         else if (energyType.includes('fairy')) energyType = 'fairy';
         else if (energyType.includes('normal')) energyType = 'normal';
         else if (energyType.includes('special')) energyType = 'special';
+        else energyType = 'special'; // energy special no reconocida
         
+        const energyName = energyMatch[2].trim() + ' Energy';
         for (let i = 0; i < quantity; i++) {
           energies.push({ 
+            name: energyName,
             type: energyType as EnergyType,
             quantity: 1 
           });
@@ -378,16 +380,14 @@ function classifyWithHeuristics(
   quantity: number,
   pokemon: any[],
   trainers: any[],
-  energiesMap: Map<string, number>,
+  energiesMap: Map<string, { name: string; type: string; quantity: number }>,
 ): void {
-  // 1) Detectar energía por nombre
-  const isEnergy = FALLBACK_ENERGY_NAMES.some(e => name.toLowerCase().includes(e)) &&
-    name.toLowerCase().includes('energy');
-  
-  if (isEnergy) {
-    const energyMatch = name.match(/(\w+)\s+Energy/i);
+  // 1) Cualquier carta con "Energy" en el nombre es energía
+  if (name.toLowerCase().includes('energy')) {
+    const energyMatch = name.match(/([\w\s]+?)\s*Energy/i);
+    let t = 'special';
     if (energyMatch) {
-      let t = energyMatch[1].toLowerCase();
+      t = energyMatch[1].toLowerCase().trim();
       if (t.includes('darkness')) t = 'darkness';
       else if (t.includes('psychic')) t = 'psychic';
       else if (t.includes('fire')) t = 'fire';
@@ -400,11 +400,17 @@ function classifyWithHeuristics(
       else if (t.includes('fairy')) t = 'fairy';
       else if (t.includes('normal')) t = 'normal';
       else if (t.includes('special')) t = 'special';
-
-      const existing = energiesMap.get(t) || 0;
-      energiesMap.set(t, existing + quantity);
-      return;
+      else t = 'special';
     }
+
+    const key = energyMatch ? energyMatch[0].trim() : name;
+    const existing = energiesMap.get(key);
+    if (existing) {
+      existing.quantity += quantity;
+    } else {
+      energiesMap.set(key, { name, type: t, quantity });
+    }
+    return;
   }
 
   // 2) Detectar trainer por nombre
@@ -439,7 +445,7 @@ export async function parseDeckListWithApi(
   const lines = text.trim().split('\n');
   const pokemon: any[] = [];
   const trainers: any[] = [];
-  const energiesMap = new Map<string, number>();
+  const energiesMap = new Map<string, { name: string; type: string; quantity: number }>();
   const skipped: string[] = [];
 
   // ── 1. Parsear líneas a objetos { name, set?, number?, quantity } ──
@@ -524,13 +530,18 @@ export async function parseDeckListWithApi(
         for (let i = 0; i < entry.quantity; i++) {
           trainers.push({ ...trainer });
         }
-      } else if (supertype === 'Energy') {
-        const energy = convertApiEnergy(apiCard);
-        if (energy) {
-          const existing = energiesMap.get(energy.type) || 0;
-          energiesMap.set(energy.type, existing + entry.quantity);
-        }
-      } else {
+                } else if (supertype === 'Energy') {
+            const energy = convertApiEnergy(apiCard);
+            if (energy) {
+              const key = energy.name || energy.type;
+              const existing = energiesMap.get(key);
+              if (existing) {
+                existing.quantity += entry.quantity;
+              } else {
+                energiesMap.set(key, { name: energy.name, type: energy.type, quantity: entry.quantity });
+              }
+            }
+          } else {
         // supertype desconocido — tratar como Pokémon genérico
         console.warn("Unknown supertype " + supertype + " for " + entry.name + ", treating as Pokemon");
         for (let i = 0; i < entry.quantity; i++) {
@@ -574,9 +585,9 @@ export async function parseDeckListWithApi(
   }
 
   // ── 3. Convertir el mapa de energías a array ──
-  const energies: { type: EnergyType; quantity: number }[] = [];
-  for (const [type, qty] of energiesMap) {
-    energies.push({ type: type as EnergyType, quantity: qty });
+  const energies: { name?: string; type: EnergyType; quantity: number }[] = [];
+  for (const [, entry] of energiesMap) {
+    energies.push({ name: entry.name, type: entry.type as EnergyType, quantity: entry.quantity });
   }
 
   if (skipped.length > 0) {

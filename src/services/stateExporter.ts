@@ -78,7 +78,7 @@ export function canPayCost(
       pool.splice(idx, 1);
     } else {
       // Energía específica
-      const idx = pool.indexOf(required);
+      const idx = pool.findIndex(e => e === required || e.toLowerCase().includes(required));
       if (idx === -1) return false;
       pool.splice(idx, 1);
     }
@@ -335,7 +335,7 @@ function renderDeckContent(deck: DeckPreset | null): string {
   if (deck.energies.length > 0) {
     parts.push(`  Energías:`);
     for (const e of deck.energies) {
-      parts.push(`    - ⚡ ${ENERGY_NAMES[e.type] ?? e.type} ×${e.quantity}`);
+      parts.push(`    - ⚡ ${e.name || (ENERGY_NAMES[e.type] ?? e.type)} ×${e.quantity}`);
     }
     parts.push('');
   }
@@ -650,7 +650,7 @@ function groupCardsByName(
 ): Record<string, (PokemonCard | TrainerCard | EnergyCard)[]> {
   const grouped: Record<string, (PokemonCard | TrainerCard | EnergyCard)[]> = {};
   for (const c of cards) {
-    const key = 'stage' in c ? c.name : 'quantity' in c ? `${(c as EnergyCard).type} Energy` : (c as TrainerCard).name;
+    const key = 'stage' in c ? c.name : 'quantity' in c ? c.name : (c as TrainerCard).name;
     if (!grouped[key]) grouped[key] = [];
     grouped[key].push(c);
   }

@@ -136,12 +136,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const p1Cards = [
       ...player1Deck.pokemon.map(p => ({ ...p, id: uuidv4() })),
       ...player1Deck.trainers.map(t => ({ ...t, id: uuidv4() })),
-      ...player1Deck.energies.flatMap(e => Array.from({ length: e.quantity }, () => ({ name: `${e.type} Energy`, type: e.type, quantity: 1, id: uuidv4() }))),
+      ...player1Deck.energies.flatMap(e => Array.from({ length: e.quantity }, () => ({ name: e.name || `${e.type} Energy`, type: e.type, quantity: 1, id: uuidv4() }))),
     ];
     const p2Cards = [
       ...player2Deck.pokemon.map(p => ({ ...p, id: uuidv4() })),
       ...player2Deck.trainers.map(t => ({ ...t, id: uuidv4() })),
-      ...player2Deck.energies.flatMap(e => Array.from({ length: e.quantity }, () => ({ name: `${e.type} Energy`, type: e.type, quantity: 1, id: uuidv4() }))),
+      ...player2Deck.energies.flatMap(e => Array.from({ length: e.quantity }, () => ({ name: e.name || `${e.type} Energy`, type: e.type, quantity: 1, id: uuidv4() }))),
     ];
     
     const shuffle = (arr: any[]) => [...arr].sort(() => Math.random() - 0.5);
@@ -186,25 +186,34 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   addCustomDeck: (deck: DeckPreset) => {
-    set(state => ({
-      customDecks: [...state.customDecks, { ...deck, id: uuidv4() }],
-    }));
-    const decks = get().customDecks;
-    localStorage.setItem('pokemon-custom-decks', JSON.stringify(decks));
+    set(state => {
+      const newDecks = [...state.customDecks, { ...deck, id: uuidv4() }];
+      localStorage.setItem('pokemon-custom-decks', JSON.stringify(newDecks));
+      return { customDecks: newDecks };
+    });
   },
 
   removeCustomDeck: (id: string) => {
-    set(state => ({
-      customDecks: state.customDecks.filter(d => d.id !== id),
-    }));
-    const decks = get().customDecks;
-    localStorage.setItem('pokemon-custom-decks', JSON.stringify(decks));
+    set(state => {
+      const newDecks = state.customDecks.filter(d => d.id !== id);
+      localStorage.setItem('pokemon-custom-decks', JSON.stringify(newDecks));
+      return { customDecks: newDecks };
+    });
   },
 
   loadCustomDecks: () => {
     const saved = localStorage.getItem('pokemon-custom-decks');
     if (saved) {
-      set({ customDecks: JSON.parse(saved) });
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          const valid = parsed.filter((d: any) =>
+            d && typeof d === 'object' && typeof d.name === 'string' &&
+            Array.isArray(d.pokemon) && Array.isArray(d.trainers) && Array.isArray(d.energies)
+          );
+          set({ customDecks: valid });
+        }
+      } catch { /* invalid data, ignore */ }
     }
   },
 
@@ -212,7 +221,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const allCards = [
       ...pokemonList.map(p => ({ ...p, id: uuidv4() })),
       ...trainers.map(t => ({ ...t, id: uuidv4() })),
-      ...energies.flatMap(e => Array.from({ length: e.quantity }, () => ({ name: `${e.type} Energy`, type: e.type, quantity: 1, id: uuidv4() }))),
+      ...energies.flatMap(e => Array.from({ length: e.quantity }, () => ({ name: e.name || `${e.type} Energy`, type: e.type, quantity: 1, id: uuidv4() }))),
     ];
     
     const shuffled = [...allCards].sort(() => Math.random() - 0.5);
