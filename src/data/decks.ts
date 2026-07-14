@@ -351,9 +351,85 @@ export function parseDeckList(text: string): { pokemon: any[], trainers: any[], 
 // ASYNC VERSION WITH API LOOKUP
 // ==========================================
 
-import { fetchCard, convertApiCard } from '../services/pokemonTcgApi';
+import { fetchCard, convertApiCard, convertApiTrainer, convertApiEnergy, fetchCardFromTcgdex, convertTcgdexToCardData } from '../services/pokemonTcgApi';
 
-// Enhanced parse with API lookup
+// ── Fallback heurístico cuando la API no responde ──
+// Solo se usa cuando la API de Pokémon TCG no puede identificar una carta.
+// Clasifica por nombre como respaldo (energía > trainer > Pokémon genérico).
+const FALLBACK_ENERGY_NAMES = ['psychic', 'fire', 'water', 'grass', 'electric', 'fighting', 'darkness', 'metal', 'dragon', 'fairy', 'normal', 'special'];
+
+const FALLBACK_TRAINER_NAMES = [
+  "Lillie's", "Boss's", 'Iono', 'Arven', 'Hilda', "Professor's", 'Professor',
+  'Nest Ball', 'Ultra Ball', 'Rare Candy', 'Super Rod', 'Switch',
+  'Buddy-Buddy Poffin', 'Counter Catcher', 'Night Stretcher', 'Jamming Tower',
+  'Fire Crystal', 'Technical Machine', 'Bravery Charm', 'Spikemuth Gym',
+  'Artazon', 'Air Balloon', 'Pokemon Center', 'Crushing Hammer',
+  'Unfair Stamp', 'Red Card', 'Handheld Fan', 'Team Rocket', "Rocket's",
+  'Crispin', 'Dawn', 'PokePad', 'Poké Pad', 'Secret Box', 'Poffin',
+  'Marnie', 'Rai', 'Kofu', 'Dominic', 'Kieran', 'Crispin', 'Eri', 'Bianca',
+  'Lisia', 'Xerosic', 'Hand Trimmer', "Hero's Cape", 'Community Center',
+  'Festival Grounds', 'Mega', 'Jumbo Ice Cream', 'Pokégear', 'PokéGear',
+];
+
+function classifyWithHeuristics(
+  name: string,
+  quantity: number,
+  pokemon: any[],
+  trainers: any[],
+  energiesMap: Map<string, number>,
+): void {
+  // 1) Detectar energía por nombre
+  const isEnergy = FALLBACK_ENERGY_NAMES.some(e => name.toLowerCase().includes(e)) &&
+    name.toLowerCase().includes('energy');
+  
+  if (isEnergy) {
+    const energyMatch = name.match(/(\w+)\s+Energy/i);
+    if (energyMatch) {
+      let t = energyMatch[1].toLowerCase();
+      if (t.includes('darkness')) t = 'darkness';
+      else if (t.includes('psychic')) t = 'psychic';
+      else if (t.includes('fire')) t = 'fire';
+      else if (t.includes('water')) t = 'water';
+      else if (t.includes('grass')) t = 'grass';
+      else if (t.includes('elec')) t = 'electric';
+      else if (t.includes('fight')) t = 'fighting';
+      else if (t.includes('metal')) t = 'metal';
+      else if (t.includes('dragon')) t = 'dragon';
+      else if (t.includes('fairy')) t = 'fairy';
+      else if (t.includes('normal')) t = 'normal';
+      else if (t.includes('special')) t = 'special';
+
+      const existing = energiesMap.get(t) || 0;
+      energiesMap.set(t, existing + quantity);
+      return;
+    }
+  }
+
+  // 2) Detectar trainer por nombre
+  const isTrainer = FALLBACK_TRAINER_NAMES.some(t => name.includes(t));
+  if (isTrainer) {
+    const isSupporter = /boss|lillie|iono|hilda|arven|professor|marnie|crispin|dawn|bianca|lisia|xerosic|eri|raian|kofu|dominic|kieran/i.test(name);
+    const isStadium = /gym|stadium|artazon|center|tower|watchtower|community|festival/i.test(name);
+    const type = isStadium ? 'stadium' : isSupporter ? 'supporter' : 'item';
+    for (let i = 0; i < quantity; i++) {
+      trainers.push({ name, type, description: '', rarity: 'uncommon' });
+    }
+    return;
+  }
+
+  // 3) Fallback final: Pokémon genérico
+  console.warn('Fallback: treating', name, 'as generic Pokemon');
+  for (let i = 0; i < quantity; i++) {
+    pokemon.push({
+      name, stage: 'basic', hp: 100,
+      type: 'normal', attacks: [], retreatCost: 1, rarity: 'common',
+    });
+  }
+}
+
+// Enhanced parse with API lookup — clasifica TODAS las cartas por supertype de la API
+// en vez de usar heurísticas. Cada carta única se busca en la API y se clasifica como
+// Pokémon, Trainer o Energy según el campo supertype de la respuesta.
 export async function parseDeckListWithApi(
   text: string, 
   onProgress?: (current: number, total: number, cardName: string) => void
@@ -361,71 +437,29 @@ export async function parseDeckListWithApi(
   const lines = text.trim().split('\n');
   const pokemon: any[] = [];
   const trainers: any[] = [];
-  const energies: any[] = [];
+  const energiesMap = new Map<string, number>();
   const skipped: string[] = [];
-  
-  // Cards to lookup in API
-  const cardsToLookup: { name: string, set?: string, number?: string, quantity: number }[] = [];
-  
-  const energyKeywords = ['psychic', 'fire', 'water', 'grass', 'electric', 'fighting', 'darkness', 'metal', 'dragon', 'fairy', 'normal', 'special'];
-  const trainerNames = [
-    "Lillie's Determination", 'Iono', "Boss's Orders", 'Buddy-Buddy Poffin',
-    'Counter Catcher', 'Night Stretcher', 'Jamming Tower', 'Hilda',
-    'Ultra Ball', 'PokePad', "Professor's Research", 'Nest Ball', 'Switch',
-    'Rare Candy', 'Super Rod', 'Fire Crystal', 'Arven', 'Crisice Rider',
-    'Poké Pad', 'Secret Box', 'Technical Machine', 'Bravery Charm', 'Spikemuth Gym', 'Artazon', 'Air Balloon', "Marnie's",
-    'Poffin', 'Gym', 'Marnie', 'Pokemon Center Lady', 'Rai', 'Otmane', 'Kofu', 'Dominic', 'Kieran',
-    'Crispin', 'Dawn', 'Crushing Hammer', 'Unfair Stamp', 'Special Red Card', 'Handheld Fan', "Team Rocket's Watchtower"
-  ];
-  const trainerPrefixes = ["Lillie's", "Boss's", 'Iono', 'Arven', 'Hilda', "Professor'", 'Nest', 'Ultra', 'Rare', 'Super', 'Counter', 'Buddy-Buddy', 'Night', 'Jamming', 'Switch', 'Fire Crystal', 'Technical', 'Bravery', 'Spikemuth', 'Artazon', 'Air Balloon', 'Pokemon Center', 'Pokémon Center',
-    'Crispin', 'Dawn', 'Crushing', 'Unfair', 'Red Card', 'Handheld', 'Team Rocket', "Rocket's"
-  ];
-  
-  // First pass: identify all cards
+
+  // ── 1. Parsear líneas a objetos { name, set?, number?, quantity } ──
+  interface CardEntry {
+    name: string;
+    set?: string;
+    number?: string;
+    quantity: number;
+  }
+  const allCards: CardEntry[] = [];
+
   for (const line of lines) {
     const trimmed = line.trim();
-    if (!trimmed || 
-        trimmed.toLowerCase() === 'pokémon:' || 
-        trimmed.toLowerCase() === 'pokemon:' || 
-        trimmed.toLowerCase() === 'trainer:' || 
-        trimmed.toLowerCase() === 'trainers:' ||
-        trimmed.toLowerCase() === 'energy:') continue;
-    
-    // Energy card
-    const isEnergy = energyKeywords.some(e => trimmed.toLowerCase().includes(e.toLowerCase())) && 
-                     trimmed.toLowerCase().includes('energy');
-    if (isEnergy) {
-      const energyMatch = trimmed.match(/^(\d+)\s+(.+?)\s+Energy/i);
-      if (energyMatch) {
-        const quantity = parseInt(energyMatch[1]);
-        let energyType = energyMatch[2].toLowerCase().replace(/mee\s*\d+/i, '').replace(/\s+/g, '').trim();
-        if (energyType.includes('darkness')) energyType = 'darkness';
-        else if (energyType.includes('psychic')) energyType = 'psychic';
-        else if (energyType.includes('fire')) energyType = 'fire';
-        else if (energyType.includes('water')) energyType = 'water';
-        else if (energyType.includes('grass')) energyType = 'grass';
-        else if (energyType.includes('elec')) energyType = 'electric';
-        else if (energyType.includes('fight')) energyType = 'fighting';
-        else if (energyType.includes('metal')) energyType = 'metal';
-        else if (energyType.includes('dragon')) energyType = 'dragon';
-        else if (energyType.includes('fairy')) energyType = 'fairy';
-        else if (energyType.includes('normal')) energyType = 'normal';
-        else if (energyType.includes('special')) energyType = 'special';
-        
-        for (let i = 0; i < quantity; i++) {
-          energies.push({ type: energyType as EnergyType, quantity: 1 });
-        }
-      }
-      continue;
-    }
-    
-    // Parse line
+    if (!trimmed || /^(pok[eé]mon|trainer|energy):/i.test(trimmed)) continue;
+
+    // Intentar los 3 formatos: "4 Card Name SET 123", "4 Card Name (SET 123)", "4 Card Name"
     const match1 = trimmed.match(/^(\d+)\s+(.+?)\s+([A-Z]{2,4})\s+(\d+)$/);
     const match2 = trimmed.match(/^(\d+)\s+(.+?)\s+\(([A-Z]{2,4})\s+(\d+)\)$/);
     const match3 = trimmed.match(/^(\d+)\s+(.+)$/);
-    
+
     let quantity: number, name: string, setInfo: string | null = null;
-    
+
     if (match1) {
       quantity = parseInt(match1[1]);
       name = match1[2].trim();
@@ -442,84 +476,112 @@ export async function parseDeckListWithApi(
       skipped.push(trimmed);
       continue;
     }
-    
+
+    // Limpiar nombre: remover set info residual
     name = name.replace(/\s*\([A-Z]{2,4}\s*\d+\)\s*$/i, '').trim();
     name = name.replace(/\s+[A-Z]{2,4}\s+\d+\s*$/i, '').trim();
-    
-    // Check if trainer
-    const isLikelyTrainer = trainerPrefixes.some(prefix => name.includes(prefix)) ||
-                           trainerNames.some(t => name.toLowerCase().includes(t.toLowerCase()));
-    
-    if (isLikelyTrainer) {
-      for (let i = 0; i < quantity; i++) {
-        const isSupporter = name.includes('Boss') || name.includes("Lillie") || name.includes('Iono') || 
-                           name.includes('Hilda') || name.includes('Arven') || name.includes('Professor') || 
-                           name.includes('Marnie') || name.includes('Rai') || name.includes('Otmane') ||
-                           name.includes('Kofu') || name.includes('Dominic') || name.includes('Kieran') ||
-                           name.includes('Crispin') || name.includes('Dawn');
-        const isStadium = name.includes('Gym') || name.includes('Stadium') || name.includes('Artazon') || name.includes('Pokemon Center') ||
-                         name.includes('Tower') || name.includes('Watchtower');
-        trainers.push({ 
-          name, 
-          type: isStadium ? 'stadium' : (isSupporter ? 'supporter' : 'item'),
-          description: '', 
-          rarity: 'uncommon' 
-        });
-      }
-      continue;
-    }
-    
-    // Pokemon - add to lookup list
+
     const setCode = setInfo ? setInfo.split(' ')[0] : undefined;
     const setNum = setInfo ? setInfo.split(' ')[1] : undefined;
-    cardsToLookup.push({ name, set: setCode, number: setNum, quantity });
+
+    allCards.push({ name, set: setCode, number: setNum, quantity });
   }
-  
-  // Lookup cards in API
-  const total = cardsToLookup.length;
+
+  // ── 2. Buscar en API (deduplicado: same name+set+number = 1 call) ──
+  // Agrupar por clave única para no llamar a la API 4 veces por 4 copias
+  const grouped = new Map<string, { name: string; set?: string; number?: string; quantity: number }>();
+  for (const card of allCards) {
+    const key = `${card.name}::${card.set || ''}::${card.number || ''}`;
+    const existing = grouped.get(key);
+    if (existing) {
+      existing.quantity += card.quantity;
+    } else {
+      grouped.set(key, { ...card });
+    }
+  }
+
+  const total = grouped.size;
   let current = 0;
-  
-  for (const cardInfo of cardsToLookup) {
+
+  for (const [, entry] of grouped) {
     current++;
-    onProgress?.(current, total, cardInfo.name);
-    
-    const apiCard = await fetchCard(cardInfo.name, cardInfo.set, cardInfo.number);
-    
-    for (let i = 0; i < cardInfo.quantity; i++) {
-      if (apiCard) {
-        // Use API data
-        const convertedCard = convertApiCard(apiCard);
-        pokemon.push(convertedCard);
+    onProgress?.(current, total, entry.name);
+
+    const apiCard = await fetchCard(entry.name, entry.set, entry.number);
+
+    if (apiCard && apiCard.supertype) {
+      // API respondió — clasificar por supertype
+      const supertype = apiCard.supertype;
+
+      if (supertype === 'Pokémon' || supertype === 'Pokemon') {
+        for (let i = 0; i < entry.quantity; i++) {
+          pokemon.push(convertApiCard(apiCard));
+        }
+      } else if (supertype === 'Trainer') {
+        const trainer = convertApiTrainer(apiCard);
+        for (let i = 0; i < entry.quantity; i++) {
+          trainers.push({ ...trainer });
+        }
+      } else if (supertype === 'Energy') {
+        const energy = convertApiEnergy(apiCard);
+        if (energy) {
+          const existing = energiesMap.get(energy.type) || 0;
+          energiesMap.set(energy.type, existing + entry.quantity);
+        }
       } else {
-        // Fallback to local database
-        const cardKey = Object.keys(cardDatabase).find(k => {
-          const cardName = k.split('-')[0].toLowerCase();
-          return cardInfo.name.toLowerCase().includes(cardName);
-        });
-        
-        if (cardKey && cardDatabase[cardKey]) {
-          pokemon.push(cardDatabase[cardKey]);
-        } else {
-          // Ultimate fallback
+        // supertype desconocido — tratar como Pokémon genérico
+        console.warn("Unknown supertype " + supertype + " for " + entry.name + ", treating as Pokemon");
+        for (let i = 0; i < entry.quantity; i++) {
           pokemon.push({
-            name: cardInfo.name,
-            stage: 'basic',
-            hp: 100,
-            type: 'normal',
-            attacks: [],
-            retreatCost: 1,
-            rarity: 'common',
+            name: entry.name, stage: 'basic', hp: 100,
+            type: 'normal', attacks: [], retreatCost: 1, rarity: 'common',
           });
         }
       }
+    } else {
+      // API primaria falló — intentar con TCGdex
+      const tcgCardRaw = await fetchCardFromTcgdex(entry.name);
+      const tcgCard = tcgCardRaw ? convertTcgdexToCardData(tcgCardRaw) : null;
+
+      if (tcgCard && tcgCard.supertype) {
+        const supertype = tcgCard.supertype;
+        if (supertype === 'Pokémon' || supertype === 'Pokemon') {
+          for (let i = 0; i < entry.quantity; i++) {
+            pokemon.push(convertApiCard(tcgCard));
+          }
+        } else if (supertype === 'Trainer') {
+          const trainer = convertApiTrainer(tcgCard);
+          for (let i = 0; i < entry.quantity; i++) {
+            trainers.push({ ...trainer });
+          }
+        } else if (supertype === 'Energy') {
+          const energy = convertApiEnergy(tcgCard);
+          if (energy) {
+            const existing = energiesMap.get(energy.type) || 0;
+            energiesMap.set(energy.type, existing + entry.quantity);
+          }
+        } else {
+          // TCGdex devolvió supertype desconocido — heuristics final
+          classifyWithHeuristics(entry.name, entry.quantity, pokemon, trainers, energiesMap);
+        }
+      } else {
+        // TCGdex tampoco encontró la carta — fallback heurístico final
+        classifyWithHeuristics(entry.name, entry.quantity, pokemon, trainers, energiesMap);
+      }
     }
   }
-  
+
+  // ── 3. Convertir el mapa de energías a array ──
+  const energies: { type: EnergyType; quantity: number }[] = [];
+  for (const [type, qty] of energiesMap) {
+    energies.push({ type: type as EnergyType, quantity: qty });
+  }
+
   if (skipped.length > 0) {
     console.log('Skipped lines:', skipped);
   }
-  
-  console.log(`Import with API complete: ${pokemon.length} Pokemon, ${trainers.length} Trainers, ${energies.length} Energies`);
-  
+
+  console.log(`Import with API complete: ${pokemon.length} Pokemon, ${trainers.length} Trainers, ${energies.length} Energy types`);
+
   return { pokemon, trainers, energies };
 }

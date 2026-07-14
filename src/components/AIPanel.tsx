@@ -41,7 +41,7 @@ export function AIPanel() {
     return stateText;
   }, [getStateForAI]);
 
-  const analyzeWithHF = async () => {
+  const analyzeWithNVIDIA = async () => {
     const stateText = await copyStateToClipboard();
 
     if (!apiKey) return;
@@ -74,14 +74,17 @@ ODDS: Win: X% | Lose: Y% | Draw: Z%
 ---
 `;
 
+    const model = (document.getElementById('nvidia-model-select') as HTMLSelectElement)?.value || 'nvidia/llama-3.3-nemotron-super-49b-v1.5';
+
     try {
-      const res = await fetch('https://api-inference.huggingface.co/models/meta-llama/Llama-3.1-8B-Instruct/v1/chat/completions', {
+      const res = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          model,
           messages: [
             { role: 'system', content: 'You are an expert Pokémon TCG strategist. Provide clear, actionable advice for the current game state.' },
             { role: 'user', content: prompt }
@@ -228,20 +231,28 @@ ODDS: Win: X% | Lose: Y% | Draw: Z%
         {activeTab === 'external' && (
           <div className="external-content">
             <div className="hf-section">
-              <label className="hf-label">HuggingFace API Key (opcional)</label>
+              <label className="hf-label">NVIDIA API Key (gratis en build.nvidia.com)</label>
               <input
                 type="password"
-                placeholder="hf_..."
+                placeholder="nvapi-..."
                 value={apiKey}
                 onChange={e => setApiKey(e.target.value)}
                 className="api-key-input"
               />
+              <div className="model-select-row">
+                <select id="nvidia-model-select" className="model-select">
+                  <option value="nvidia/llama-3.3-nemotron-super-49b-v1.5">Llama-3.3 Nemotron Super 49B</option>
+                  <option value="nvidia/nemotron-3-ultra-550b-a55b">Nemotron-3 Ultra 550B</option>
+                  <option value="deepseek-ai/deepseek-v4-flash">DeepSeek V4 Flash</option>
+                  <option value="nvidia/nemotron-3-nano-30b-a3b">Nemotron-3 Nano 30B</option>
+                </select>
+              </div>
               <button
-                onClick={analyzeWithHF}
+                onClick={analyzeWithNVIDIA}
                 disabled={loading || !apiKey}
                 className="analyze-btn"
               >
-                {loading ? '⏳ Analizando...' : '🔍 Analizar con Llama 3.1'}
+                {loading ? '⏳ Analizando...' : '🔍 Analizar con NVIDIA'}
               </button>
             </div>
 

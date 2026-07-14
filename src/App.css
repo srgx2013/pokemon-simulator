@@ -2796,3 +2796,28 @@ body {
   text-align: center;
   margin: 0;
 }
+/* MODEL SELECT */
+.model-select-row {
+  margin: 0.5rem 0;
+}
+
+.model-select {
+  width: 100%;
+  padding: 0.5rem;
+  background: var(--primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.model-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.model-select option {
+  background: var(--primary);
+  color: var(--text-primary);
+}
