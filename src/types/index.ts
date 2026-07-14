@@ -14,7 +14,7 @@ export interface EnergyCard {
 }
 
 export interface PokemonCard {
-  id: string;
+  id?: string;
   name: string;
   stage: PokemonStage;
   hp: number;
@@ -90,7 +90,7 @@ export interface DeckPreset {
   description: string;
   pokemon: Omit<PokemonCard, 'id'>[];
   trainers: Omit<TrainerCard, 'id'>[];
-  energies: { type: EnergyType; quantity: number }[];
+  energies: { name?: string; type: EnergyType; quantity: number }[];
 }
 
 export interface MoveRecommendation {

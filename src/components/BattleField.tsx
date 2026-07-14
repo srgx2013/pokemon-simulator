@@ -76,28 +76,37 @@ export function BattleField({ player, isCurrentPlayer = false }: Props) {
         });
         return total;
       };
-      const renderSpecials = (specials: any[], pokeRef: any, tgt: string, limitMap: Record<string, number>, stateRef: typeof playerState) => {
-          if (specials.length === 0) return null;
-          return (
-            <div style={{ marginTop: '6px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '4px' }}>
-              <div className="energy-controls-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
-                {specials.map((sp: any) => {
-                  const c = pokeRef.attachedEnergy.filter((x: string) => x === sp.name).length;
-                  return (
-                    <div key={sp.name} className="energy-counter">
-                      <button className="energy-btn-minus" onClick={() => removeEnergy(tgt, pokeRef.id, sp.name)} disabled={c === 0}>−</button>
-                      <div className="energy-count-badge" style={{ backgroundColor: c > 0 ? '#9B7DFF' : '#333' }} title={sp.name}>
-                        <span style={{ fontSize: '0.6rem', fontWeight: 700 }}>{sp.name.replace(' Energy', '').slice(0, 8)}</span>
-                        <span className="energy-badge-count">{c}</span>
-                      </div>
-                      <button className="energy-btn-plus" onClick={() => addEnergy(tgt, pokeRef.id, sp.name)} disabled={totalUsed(sp.name) >= (limitMap[sp.name] || 999)}>+</button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        };
+                const renderSpecials = (specials: any[], pokeRef: any, tgt: string, limitMap: Record<string, number>, stateRef: typeof playerState) => {
+              if (specials.length === 0) return null;
+              const totalUsed = (name: string) => {
+                let count = 0;
+                const addCount = (arr: string[]) => { arr.forEach(x => { if (x === name) count++; }); };
+                if (stateRef.active) addCount(stateRef.active.attachedEnergy);
+                stateRef.bench.forEach(p => { if (p) addCount(p.attachedEnergy); });
+                return count;
+              };
+              return (
+                <div style={{ marginTop: '6px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '4px' }}>
+                  <div className="energy-controls-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+                    {specials.map((sp: any) => {
+                      const c = pokeRef.attachedEnergy.filter((x: string) => x === sp.name).length;
+                      const limit = limitMap[sp.name] || 0;
+                      const used = totalUsed(sp.name);
+                      return (
+                        <div key={sp.name} className="energy-counter">
+                          <button className="energy-btn-minus" onClick={() => removeEnergy(tgt, pokeRef.id, sp.name)} disabled={c === 0}>-</button>
+                          <div className="energy-count-badge" style={{ backgroundColor: c > 0 ? '#9B7DFF' : '#333' }} title={sp.name}>
+                            <span style={{ fontSize: '0.6rem', fontWeight: 700 }}>{sp.name.replace(' Energy', '').slice(0, 8)}</span>
+                            <span className="energy-badge-count">{c}</span>
+                          </div>
+                          <button className="energy-btn-plus" onClick={() => addEnergy(tgt, pokeRef.id, sp.name)} disabled={limit > 0 && used >= limit}>+</button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            };
   // Count currently attached energy of each type for a player state
   const countAttachedEnergy = (ps: typeof playerState): Record<string, number> => {
     const counts: Record<string, number> = {};
