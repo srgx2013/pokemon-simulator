@@ -59,7 +59,7 @@ const STAGE_NAMES: Record<string, string> = {
  */
 export function canPayCost(
   cost: EnergyType[],
-  attachedEnergy: EnergyType[],
+  attachedEnergy: string[],
 ): boolean {
   if (!cost || cost.length === 0) return false;
 
@@ -89,7 +89,7 @@ export function canPayCost(
 /**
  * Formatea un array de EnergyType como string legible.
  */
-function fmtEnergyList(energies: EnergyType[]): string {
+function fmtEnergyList(energies: string[]): string {
   if (energies.length === 0) return 'Ninguna';
   return energies.map((e) => ENERGY_NAMES[e] ?? e).join(', ');
 }

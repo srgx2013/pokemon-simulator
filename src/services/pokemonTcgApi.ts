@@ -80,7 +80,7 @@ export function setCache(key: string, cards: CardData[]): void {
   }
 }
 
-// Buscar carta por nombre y set
+// Buscar carta por nombre y set con reintentos automáticos
 export async function fetchCard(name: string, setCode?: string, number?: string): Promise<CardData | null> {
   const cacheKey = `${name.toLowerCase()}_${setCode || ''}_${number || ''}`;
   const cache = getCache();
@@ -90,48 +90,68 @@ export async function fetchCard(name: string, setCode?: string, number?: string)
     return cache[cacheKey].cards[0] || null;
   }
 
-  try {
-    let query = `name:${encodeURIComponent(name)}`;
-    
-    if (setCode) {
-      const apiSetCode = setCodeMap[setCode.toUpperCase()];
-      if (apiSetCode) {
-        query += ` set.id:${apiSetCode}`;
-        if (number) query += ` number:${number}`;
+  // Reintentos con backoff exponencial para rate limiting
+  const maxRetries = 3;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      let query = `name:"${encodeURIComponent(name)}"`;
+      
+      if (setCode) {
+        const apiSetCode = setCodeMap[setCode.toUpperCase()];
+        if (apiSetCode) {
+          query += ` set.id:${apiSetCode}`;
+          if (number) query += ` number:${number}`;
+        } else if (number) {
+          query += ` number:${number}`;
+        }
       } else if (number) {
-        // Set code desconocido — buscar solo por nombre + numero
         query += ` number:${number}`;
       }
-      // Si no conocemos el set y no hay numero, buscar solo por nombre
-    } else if (number) {
-      query += ` number:${number}`;
+      
+      const response = await fetch(`${API_BASE}/cards?q=${query}`);
+      
+      if (!response.ok) {
+        // 429 = rate limited, 404 = podría ser rate limit encubierto
+        if ((response.status === 429 || response.status === 404) && attempt < maxRetries) {
+          const delay = Math.pow(2, attempt) * 1500; // 1.5s, 3s, 6s
+          console.warn(`Rate limited (${response.status}), retry ${attempt + 1}/${maxRetries} in ${delay}ms: ${name}`);
+          await new Promise(r => setTimeout(r, delay));
+          continue;
+        }
+        throw new Error(`API error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      const cards: CardData[] = data.data || [];
+      
+      let result = cards;
+      if (number) {
+        result = cards.filter(c => c.number === number);
+      }
+      
+      if (result.length > 0) {
+        setCache(cacheKey, result);
+      }
+      
+      return result[0] || null;
+    } catch (error) {
+      // Solo reintentar en errores recuperables (rate limit, conexión)
+      const isRetryable = error instanceof TypeError || 
+        (error instanceof Error && (error.message.includes('429') || error.message.includes('Failed to fetch')));
+      
+      if (isRetryable && attempt < maxRetries) {
+        const delay = Math.pow(2, attempt) * 1500;
+        console.warn(`Retryable error, attempt ${attempt + 1}/${maxRetries} in ${delay}ms: ${name}`);
+        await new Promise(r => setTimeout(r, delay));
+      } else {
+        if (attempt >= maxRetries) {
+          console.error('Failed to fetch card after retries:', error);
+        }
+        return null;
+      }
     }
-    
-    const response = await fetch(`${API_BASE}/cards?q=${query}`);
-    
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    const cards: CardData[] = data.data || [];
-    
-    // Filtrar por número si se especificó
-    let result = cards;
-    if (number) {
-      result = cards.filter(c => c.number === number);
-    }
-    
-    // Guardar en cache
-    if (result.length > 0) {
-      setCache(cacheKey, result);
-    }
-    
-    return result[0] || null;
-  } catch (error) {
-    console.error('Failed to fetch card:', error);
-    return null;
   }
+  return null;
 }
 
 // Buscar cartas de un deck completo
@@ -413,34 +433,32 @@ export function convertApiTrainer(apiCard: CardData): { name: string; type: 'sup
  * Convierte una carta de tipo Energía desde la API al formato interno.
  * Devuelve { type, quantity } para uso en DeckPreset.energies.
  */
-export function convertApiEnergy(apiCard: CardData): { type: string; quantity: number } | null {
-  // El tipo de energía se obtiene del nombre o de types
+export function convertApiEnergy(apiCard: CardData): { name: string; type: string; quantity: number } | null {
+  // 1. Si la API dice que es Special, es Special (sin importar el nombre)
+  if (apiCard.subtypes?.includes('Special')) {
+    return { name: apiCard.name, type: 'special', quantity: 1 };
+  }
+
+  // 2. Buscar el tipo en el nombre, ej: "Fire Energy" -> "fire"
   const nameLower = apiCard.name.toLowerCase();
   const energyTypes: Record<string, string> = {
     fire: 'fire', water: 'water', grass: 'grass',
     electric: 'electric', psychic: 'psychic', fighting: 'fighting',
     darkness: 'darkness', metal: 'metal', dragon: 'dragon',
-    fairy: 'fairy', normal: 'normal', special: 'special',
+    fairy: 'fairy', normal: 'normal',
   };
-
-  // Buscar el tipo en el nombre primero, ej: "Fire Energy" -> "fire"
   for (const [key, val] of Object.entries(energyTypes)) {
     if (nameLower.includes(key)) {
-      return { type: val, quantity: 1 };
+      return { name: apiCard.name, type: val, quantity: 1 };
     }
   }
 
-  // Fallback: si tiene types, usar el primero
+  // 3. Si tiene types array, usar el primero
   if (apiCard.types && apiCard.types.length > 0) {
     const t = apiCard.types[0].toLowerCase();
     if (energyTypes[t]) {
-      return { type: t, quantity: 1 };
+      return { name: apiCard.name, type: t, quantity: 1 };
     }
-  }
-
-  // Si tiene "special" en subtypes, es energía especial
-  if (apiCard.subtypes?.includes('Special')) {
-    return { type: 'special', quantity: 1 };
   }
 
   return null;

@@ -33,13 +33,19 @@ export const PokemonCard = memo(function PokemonCard({ pokemon, onClick, selecte
 
       {attachedEnergy.length > 0 && (
         <div className="energy-attachments">
-          {attachedEnergy.map((e, i) => (
-            <div
-              key={i}
-              className="energy-orb"
-              style={{ backgroundColor: energyColors[e] }}
-            />
-          ))}
+          {attachedEnergy.map((e, i) =>
+            energyColors[e] ? (
+              <div
+                key={i}
+                className="energy-orb"
+                style={{ backgroundColor: energyColors[e] }}
+              />
+            ) : (
+              <div key={i} className="energy-orb special-orb" title={e}>
+                {e.replace(' Energy', '').slice(0, 4)}
+              </div>
+            )
+          )}
         </div>
       )}
 

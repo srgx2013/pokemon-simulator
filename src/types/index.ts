@@ -48,7 +48,7 @@ export interface PokemonInstance {
   id: string;
   card: PokemonCard;
   currentHp: number;
-  attachedEnergy: EnergyType[];
+  attachedEnergy: string[]; // basic -> 'fire', special -> 'Spiky Energy'
   status: StatusCondition;
   damage: number;
   isActive: boolean;

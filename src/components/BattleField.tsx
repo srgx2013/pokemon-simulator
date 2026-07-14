@@ -56,6 +56,30 @@ export function BattleField({ player, isCurrentPlayer = false }: Props) {
   const myEnergyLimits = getEnergyLimit(player);
   const enemyEnergyLimits = getEnergyLimit(player === 'player1' ? 'player2' : 'player1');
   
+        const mySpecials = (player === 'player1' ? p1Deck : p2Deck)?.energies?.filter((e: any) => e.name) || [];
+        const enemySpecials = (player === 'player1' ? p2Deck : p1Deck)?.energies?.filter((e: any) => e.name) || [];
+        const renderSpecials = (specials: any[], pokeRef: any, tgt: string) => {
+          if (specials.length === 0) return null;
+          return (
+            <div style={{ marginTop: '6px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '4px' }}>
+              <div className="energy-controls-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+                {specials.map((sp: any) => {
+                  const c = pokeRef.attachedEnergy.filter((x: string) => x === sp.name).length;
+                  return (
+                    <div key={sp.name} className="energy-counter">
+                      <button className="energy-btn-minus" onClick={() => removeEnergy(tgt, pokeRef.id, sp.name)} disabled={c === 0}>−</button>
+                      <div className="energy-count-badge" style={{ backgroundColor: c > 0 ? '#9B7DFF' : '#333' }} title={sp.name}>
+                        <span style={{ fontSize: '0.6rem', fontWeight: 700 }}>{sp.name.replace(' Energy', '').slice(0, 8)}</span>
+                        <span className="energy-badge-count">{c}</span>
+                      </div>
+                      <button className="energy-btn-plus" onClick={() => addEnergy(tgt, pokeRef.id, sp.name)}>+</button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        };
   // Count currently attached energy of each type for a player state
   const countAttachedEnergy = (ps: typeof playerState): Record<string, number> => {
     const counts: Record<string, number> = {};
@@ -283,6 +307,7 @@ export function BattleField({ player, isCurrentPlayer = false }: Props) {
                               );
                             })}
                           </div>
+                          {renderSpecials(enemySpecials, opponentState.bench[i]!, 'player2')}
                         </div>
                         <button className="close-edit" onClick={(e) => { e.stopPropagation(); setEditingEnemy(null); }}>✕</button>
                       </div>
@@ -355,6 +380,7 @@ export function BattleField({ player, isCurrentPlayer = false }: Props) {
                       );
                     })}
                   </div>
+                  {renderSpecials(enemySpecials, opponentState.active!, 'player2')}
                 </div>
                 <button className="close-edit" onClick={(e) => { e.stopPropagation(); setEditingEnemy(null); }}>✕</button>
               </div>
@@ -451,6 +477,7 @@ export function BattleField({ player, isCurrentPlayer = false }: Props) {
                         );
                       })}
                     </div>
+                    {renderSpecials(mySpecials, playerState.active!, player)}
                   </div>
                   <button className="close-edit" onClick={(e) => { e.stopPropagation(); setEditingId(null); }}>✕</button>
                 </div>
@@ -520,6 +547,7 @@ export function BattleField({ player, isCurrentPlayer = false }: Props) {
                               );
                             })}
                           </div>
+                          {renderSpecials(mySpecials, playerState.bench[i]!, player)}
                         </div>
                         <button className="close-edit" onClick={(e) => { e.stopPropagation(); setEditingId(null); }}>✕</button>
                       </div>

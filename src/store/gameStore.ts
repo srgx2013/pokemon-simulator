@@ -33,8 +33,8 @@ interface GameStore {
   setActivePokemon: (player: 'player1' | 'player2', pokemon: PokemonInstance | null) => void;
   setBenchPokemon: (player: 'player1' | 'player2', position: number, pokemon: PokemonInstance | null) => void;
   updatePokemonHp: (player: 'player1' | 'player2', pokemonId: string, hp: number) => void;
-  addEnergy: (player: 'player1' | 'player2', pokemonId: string, energy: EnergyType) => void;
-  removeEnergy: (player: 'player1' | 'player2', pokemonId: string, energy: EnergyType) => void;
+  addEnergy: (player: 'player1' | 'player2', pokemonId: string, energy: string) => void;
+  removeEnergy: (player: 'player1' | 'player2', pokemonId: string, energy: string) => void;
   setStatus: (player: 'player1' | 'player2', pokemonId: string, status: StatusCondition) => void;
   addDamage: (player: 'player1' | 'player2', pokemonId: string, damage: number) => void;
   
