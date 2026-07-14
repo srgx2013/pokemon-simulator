@@ -94,10 +94,11 @@ export const deckPresets: DeckPreset[] = [dragapultDeck, charizardDeck, gardevoi
 
 export const energyTypes: EnergyType[] = [
   'fire', 'water', 'grass', 'electric', 'psychic', 'fighting', 
-  'darkness', 'metal', 'dragon', 'fairy', 'normal', 'special'
+  'darkness', 'metal'
 ];
 
-export const energyColors: Record<EnergyType, string> = {
+// Todos los tipos incluyendo los que no tienen energia basica (para visualizar cartas)
+export const energyColors: Record<string, string> = {
   fire: '#FF6B35',
   water: '#4FA3D1',
   grass: '#78C850',
@@ -110,6 +111,7 @@ export const energyColors: Record<EnergyType, string> = {
   fairy: '#EE99AC',
   normal: '#A8A878',
   special: '#9B7DFF',
+  colorless: '#A8A878',
 };
 
 export interface CardData {
@@ -356,7 +358,7 @@ import { fetchCard, convertApiCard, convertApiTrainer, convertApiEnergy, fetchCa
 // ── Fallback heurístico cuando la API no responde ──
 // Solo se usa cuando la API de Pokémon TCG no puede identificar una carta.
 // Clasifica por nombre como respaldo (energía > trainer > Pokémon genérico).
-const FALLBACK_ENERGY_NAMES = ['psychic', 'fire', 'water', 'grass', 'electric', 'fighting', 'darkness', 'metal', 'dragon', 'fairy', 'normal', 'special'];
+const FALLBACK_ENERGY_NAMES = ['psychic', 'fire', 'water', 'grass', 'electric', 'fighting', 'darkness', 'metal'];
 
 const FALLBACK_TRAINER_NAMES = [
   "Lillie's", "Boss's", 'Iono', 'Arven', 'Hilda', "Professor's", 'Professor',

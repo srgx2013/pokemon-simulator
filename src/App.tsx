@@ -80,7 +80,10 @@ function App() {
   return (
     <div className="app">
       <header className="header">
-        <h1>🃏 Pokemon Battle Simulator</h1>
+        <div className="header-title-group">
+          <h1>🃏 Pokemon TCG — Tablero Editable</h1>
+          <span className="header-subtitle">Configurá escenarios, editá el estado, exportá a IA para análisis</span>
+        </div>
         <div className="header-actions">
           <DeckSelector />
           <button onClick={handleSave} className="save-btn">💾 Guardar</button>

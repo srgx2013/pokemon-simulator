@@ -47,6 +47,14 @@ body {
   background: linear-gradient(135deg, var(--accent), #ff8a80);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  margin: 0;
+}
+
+.header-subtitle {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  -webkit-text-fill-color: var(--text-secondary);
+  letter-spacing: 0.02em;
 }
 
 .header-actions {
@@ -490,7 +498,114 @@ body {
 .energy-toggle.attached {
   border-color: white;
 }
+/* ENERGY CONTROLS - Counter grid with +/- buttons */
+.energy-controls-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-top: 0.5rem;
+}
 
+.energy-counter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.energy-btn-minus,
+.energy-btn-plus {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--primary);
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.energy-btn-minus:hover,
+.energy-btn-plus:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.energy-btn-minus:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  background: var(--primary);
+  border-color: var(--border);
+}
+
+.energy-count-badge {
+  min-width: 48px;
+  height: 28px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fff;
+  border: 2px solid rgba(255,255,255,0.3);
+  transition: background-color 0.2s;
+  cursor: default;
+}
+
+.energy-badge-icon {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.energy-badge-count {
+  font-size: 0.7rem;
+  font-weight: 800;
+  min-width: 12px;
+  text-align: center;
+}
+
+
+
+/* HP Controls */
+.hp-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hp-btn {
+  padding: 4px 10px;
+  background: var(--primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.hp-btn:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.hp-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--success);
+  min-width: 40px;
+  text-align: center;
+}
 .close-edit {
   position: absolute;
   top: 4px;

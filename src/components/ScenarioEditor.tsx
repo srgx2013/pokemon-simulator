@@ -34,35 +34,48 @@ export function ScenarioEditor({ player }: Props) {
   const playerLabel = player === 'player1' ? 'Tú' : 'Oponente';
   const selectedDeck = player === 'player1' ? player1Deck : player2Deck;
   
-  // Get names of all used cards FIRST (prizes, hand, discard, active, bench, deck)
-  const usedCardNames = new Set<string>();
-  playerState.prizes.forEach(c => usedCardNames.add(c.name));
-  playerState.hand.forEach(c => usedCardNames.add(c.name));
-  playerState.discardPile.forEach(c => usedCardNames.add(c.name));
-  if (playerState.active) usedCardNames.add(playerState.active.card.name);
-  playerState.bench.forEach(p => {
-    if (p) usedCardNames.add(p.card.name);
-  });
-  // Also exclude cards already in deck
-  playerState.deck.forEach(c => usedCardNames.add(c.name));
-  
-  // Get pokemon from the selected deck, excluding only those in prizes or already in use (scenario simulator)
-  const prizesCardNames = new Set<string>();
-  playerState.prizes.forEach(c => prizesCardNames.add(c.name));
-  
-  // Cards already placed in Active, Bench or Hand cannot be reused
-  const inUseCardNames = new Set<string>();
-  if (playerState.active) inUseCardNames.add(playerState.active.card.name);
-  playerState.bench.forEach(p => {
-    if (p) inUseCardNames.add(p.card.name);
-  });
-  playerState.hand.forEach(c => inUseCardNames.add(c.name));
-  
-  const deckPokemon = selectedDeck 
-    ? selectedDeck.pokemon.filter(p => !prizesCardNames.has(p.name) && !inUseCardNames.has(p.name)) 
-    : [];
-  
-  // Get all cards (pokemon + trainers + energies) from deck
+      // Contador de uso: cuantas copias de cada carta se han colocado en zonas
+      const countCardUsage = (): Record<string, number> => {
+        const counts: Record<string, number> = {};
+        const addCard = (c: any) => {
+          const key = c.name || (c.type + ' Energy');
+          counts[key] = (counts[key] || 0) + 1;
+        };
+        const countEnergy = (e: string) => {
+          const key = e + ' Energy';
+          counts[key] = (counts[key] || 0) + 1;
+        };
+        if (playerState.active) {
+          addCard(playerState.active.card);
+          playerState.active.attachedEnergy.forEach(countEnergy);
+        }
+        playerState.bench.forEach(p => {
+          if (p) {
+            addCard(p.card);
+            p.attachedEnergy.forEach(countEnergy);
+          }
+        });
+        playerState.hand.forEach(addCard);
+        playerState.discardPile.forEach(addCard);
+        playerState.prizes.forEach(addCard);
+        return counts;
+      };
+      const usage = countCardUsage();
+      
+      // Sandbox: mostrar cartas disponibles (no se repiten entre zonas)
+      const deckPokemon = (() => {
+        if (!selectedDeck?.pokemon) return [];
+        const total: Record<string, number> = {};
+        selectedDeck.pokemon.forEach(p => { total[p.name] = (total[p.name] || 0) + 1; });
+        const shown: Record<string, number> = {};
+        return selectedDeck.pokemon.filter(p => {
+          const maxShow = total[p.name] - (usage[p.name] || 0);
+          shown[p.name] = (shown[p.name] || 0) + 1;
+          return shown[p.name] <= maxShow;
+        });
+      })();
+      
+      // Get all cards (pokemon + trainers + energies) from deck
   const deckCards = selectedDeck 
     ? [
         ...selectedDeck.pokemon.map(c => ({ ...c, category: 'pokemon' })),
@@ -74,10 +87,30 @@ export function ScenarioEditor({ player }: Props) {
     : [];
   
   // Filter available cards (exclude used ones for the "picker" tab)
-  const availableCards = deckCards.filter(c => !usedCardNames.has(c.name));
+  const availableCards = (() => {
+    const totalByName: Record<string, number> = {};
+    deckCards.forEach(c => { const k = c.name || (c.type + ' Energy'); totalByName[k] = (totalByName[k] || 0) + 1; });
+    const shown: Record<string, number> = {};
+    return deckCards.filter(c => {
+      const key = c.name || (c.type + ' Energy');
+      const maxShow = totalByName[key] - (usage[key] || 0);
+      shown[key] = (shown[key] || 0) + 1;
+      return shown[key] <= maxShow;
+    });
+  })();
   
   // All deck cards (for card picker - exclude cards in prizes or already in Active/Bench)
-  const allDeckCards = deckCards.filter(c => !prizesCardNames.has(c.name) && !inUseCardNames.has(c.name));
+  const allDeckCards = (() => {
+    const totalByName: Record<string, number> = {};
+    deckCards.forEach(c => { const k = c.name || (c.type + ' Energy'); totalByName[k] = (totalByName[k] || 0) + 1; });
+    const shown: Record<string, number> = {};
+    return deckCards.filter(c => {
+      const key = c.name || (c.type + ' Energy');
+      const maxShow = totalByName[key] - (usage[key] || 0);
+      shown[key] = (shown[key] || 0) + 1;
+      return shown[key] <= maxShow;
+    });
+  })();
   
   const addCards = (cards: any[], target: 'hand' | 'discard' | 'prizes' | 'deck') => {
     const playerObj = player === 'player1' ? 'player1' : 'player2';

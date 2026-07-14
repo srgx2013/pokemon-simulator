@@ -13,6 +13,7 @@ interface Props {
 
 export function BattleField({ player, isCurrentPlayer = false }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingEnemy, setEditingEnemy] = useState<string | null>(null);
   const [selectedCard, setSelectedCard] = useState<PokemonCardType | null>(null);
   // Note: showOpponentHand moved to App.tsx for better layout
   
@@ -24,6 +25,45 @@ export function BattleField({ player, isCurrentPlayer = false }: Props) {
   const removeEnergy = useGameStore(state => state.removeEnergy);
   const setStatus = useGameStore(state => state.setStatus);
   const setHand = useGameStore(state => state.setHand);
+  const p1Deck = useGameStore(state => state.player1Deck);
+  const p2Deck = useGameStore(state => state.player2Deck);
+  
+  const deckEnergyTypes: string[] = (player === 'player1' ? p1Deck : p2Deck)?.energies?.map(e => e.type) || [];
+  const enemyDeckTypes: string[] = (player === 'player1' ? p2Deck : p1Deck)?.energies?.map(e => e.type) || [];
+  
+  // Total energy cards available per type from the deck preset
+  // Solo descuenta energías en el descarte (no pokémon que compartan tipo)
+  const getEnergyType = (card: any): string | null => {
+    if ('hp' in card) return null; // es pokémon
+    // ScenarioEditor: type='energy', energyType='fire'
+    if (card.energyType && card.energyType !== 'energy') return card.energyType;
+    // startGame: type='fire'
+    if (card.type && card.type !== 'energy') return card.type;
+    return null;
+  };
+  
+  const getEnergyLimit = (p: 'player1' | 'player2'): Record<string, number> => {
+    const deck = p === 'player1' ? p1Deck : p2Deck;
+    const state = p === 'player1' ? gameState.player1 : gameState.player2;
+    const limits: Record<string, number> = {};
+    deck?.energies?.forEach(e => { limits[e.type] = (limits[e.type] || 0) + e.quantity; });
+    state.discardPile.forEach(c => {
+      const t = getEnergyType(c);
+      if (t && limits[t] !== undefined) limits[t] = Math.max(0, limits[t] - 1);
+    });
+    return limits;
+  };
+  const myEnergyLimits = getEnergyLimit(player);
+  const enemyEnergyLimits = getEnergyLimit(player === 'player1' ? 'player2' : 'player1');
+  
+  // Count currently attached energy of each type for a player state
+  const countAttachedEnergy = (ps: typeof playerState): Record<string, number> => {
+    const counts: Record<string, number> = {};
+    const add = (e: string) => { counts[e] = (counts[e] || 0) + 1; };
+    if (ps.active) ps.active.attachedEnergy.forEach(add);
+    ps.bench.forEach(p => { if (p) p.attachedEnergy.forEach(add); });
+    return counts;
+  };
   
   const playerState = player === 'player1' ? gameState.player1 : gameState.player2;
   const opponentState = player === 'player1' ? gameState.player2 : gameState.player1;
@@ -54,12 +94,10 @@ export function BattleField({ player, isCurrentPlayer = false }: Props) {
     updatePokemonHp(player, id, newHp);
   };
 
-  const handleToggleEnergy = (id: string, energy: EnergyType, isAttached: boolean) => {
-    if (isAttached) {
-      removeEnergy(player, id, energy);
-    } else {
-      addEnergy(player, id, energy);
-    }
+  const countEnergy = (id: string, type: EnergyType): number => {
+    const p = playerState.active?.id === id ? playerState.active
+      : playerState.bench.find(b => b?.id === id);
+    return p ? p.attachedEnergy.filter(e => e === type).length : 0;
   };
 
   const handleStatusChange = (id: string, status: StatusCondition) => {
@@ -198,29 +236,130 @@ export function BattleField({ player, isCurrentPlayer = false }: Props) {
       </div>
 
       {/* Oponente - Bench primero (abajo), luego Active (arriba) */}
-      <div className="opponent-bench">
-        {[0, 1, 2, 3, 4].map(i => (
-          <div 
-            key={`bench-${i}`} 
-            className="bench-slot"
-            onDrop={(e) => handleDropToBench(e, i, 'player2')}
-            onDragOver={handleDragOver}
-          >
-            {opponentState.bench[i] ? (
-              <PokemonCard pokemon={opponentState.bench[i]!} />
-            ) : (
-              <div className="empty-slot">+</div>
+                <div className="opponent-bench">
+            {[0, 1, 2, 3, 4].map(i => (
+              <div 
+                key={`bench-${i}`} 
+                className="bench-slot"
+                onDrop={(e) => handleDropToBench(e, i, 'player2')}
+                onDragOver={handleDragOver}
+              >
+                {opponentState.bench[i] ? (
+                  <div className="pokemon-instance" onClick={() => setEditingEnemy(opponentState.bench[i]!.id)}>
+                    <PokemonCard pokemon={opponentState.bench[i]!} selected={editingEnemy === opponentState.bench[i]!.id} />
+                    {editingEnemy === opponentState.bench[i]!.id && (
+                      <div className="edit-panel">
+                        <div className="edit-field">
+                          <label>HP:</label>
+                          <div className="hp-controls">
+                            <button className="hp-btn" onClick={() => updatePokemonHp('player2', opponentState.bench[i]!.id, opponentState.bench[i]!.currentHp - 10)}>-10</button>
+                            <span className="hp-value">{opponentState.bench[i]!.currentHp}</span>
+                            <button className="hp-btn" onClick={() => updatePokemonHp('player2', opponentState.bench[i]!.id, opponentState.bench[i]!.currentHp + 10)}>+10</button>
+                          </div>
+                        </div>
+                        <div className="edit-field">
+                          <label>Energía:</label>
+                          <div className="energy-controls-grid">
+                            {[
+                              { t: 'fire', icon: '🔥', label: 'Fuego' },
+                              { t: 'water', icon: '💧', label: 'Agua' },
+                              { t: 'grass', icon: '🌿', label: 'Planta' },
+                              { t: 'electric', icon: '⚡', label: 'Rayo' },
+                              { t: 'psychic', icon: '🧠', label: 'Psiquica' },
+                              { t: 'fighting', icon: '👊', label: 'Lucha' },
+                              { t: 'darkness', icon: '🌑', label: 'Oscuridad' },
+                              { t: 'metal', icon: '🛡', label: 'Metal' },
+                            ].filter(e => enemyDeckTypes.length === 0 || enemyDeckTypes.includes(e.t)).map(({ t, icon, label }) => {
+                              const count = opponentState.bench[i]!.attachedEnergy.filter(x => x === t).length;
+                              return (
+                                <div key={t} className="energy-counter">
+                                  <button className="energy-btn-minus" onClick={() => removeEnergy('player2', opponentState.bench[i]!.id, t)} disabled={count === 0}>−</button>
+                                  <div className="energy-count-badge" style={{ backgroundColor: count > 0 ? energyColors[t] : '#333' }} title={label}>
+                                    <span className="energy-badge-icon">{icon}</span>
+                                    <span className="energy-badge-count">{count}</span>
+                                  </div>
+                                  <button className="energy-btn-plus" onClick={() => addEnergy('player2', opponentState.bench[i]!.id, t)} disabled={(countAttachedEnergy(opponentState)[t] || 0) >= (enemyEnergyLimits[t] || 999)}>+</button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <button className="close-edit" onClick={(e) => { e.stopPropagation(); setEditingEnemy(null); }}>✕</button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="empty-slot">+</div>
+                )}
+              </div>
+            ))}
+          </div>
+
+                <div className="opponent-active">
+        {opponentState.active ? (
+          <div className="pokemon-instance" onClick={() => setEditingEnemy(opponentState.active!.id)}>
+            <PokemonCard 
+              pokemon={opponentState.active} 
+              showDetails
+              selected={editingEnemy === opponentState.active!.id}
+            />
+            {editingEnemy === opponentState.active!.id && (
+              <div className="edit-panel">
+                <div className="edit-field">
+                  <label>HP:</label>
+                  <div className="hp-controls">
+                    <button className="hp-btn" onClick={() => updatePokemonHp('player2', opponentState.active!.id, opponentState.active.currentHp - 10)}>-10</button>
+                    <span className="hp-value">{opponentState.active.currentHp}</span>
+                    <button className="hp-btn" onClick={() => updatePokemonHp('player2', opponentState.active!.id, opponentState.active.currentHp + 10)}>+10</button>
+                  </div>
+                </div>
+                <div className="edit-field">
+                  <label>Estado:</label>
+                  <select
+                    value={opponentState.active.status}
+                    onChange={e => setStatus('player2', opponentState.active!.id, e.target.value as StatusCondition)}
+                  >
+                    <option value="none">Ninguno</option>
+                    <option value="poisoned">Envenenado</option>
+                    <option value="poisoned1">Envenenado +1</option>
+                    <option value="poisoned2">Envenenado +2</option>
+                    <option value="poisoned3">Envenenado +3</option>
+                    <option value="paralyzed">Paralizado</option>
+                    <option value="asleep">Dormido</option>
+                    <option value="confused">Confuso</option>
+                  </select>
+                </div>
+                <div className="edit-field">
+                  <label>Energía:</label>
+                  <div className="energy-controls-grid">
+                    {[
+                      { t: 'fire', icon: '🔥', label: 'Fuego' },
+                      { t: 'water', icon: '💧', label: 'Agua' },
+                      { t: 'grass', icon: '🌿', label: 'Planta' },
+                      { t: 'electric', icon: '⚡', label: 'Rayo' },
+                      { t: 'psychic', icon: '🧠', label: 'Psiquica' },
+                      { t: 'fighting', icon: '👊', label: 'Lucha' },
+                      { t: 'darkness', icon: '🌑', label: 'Oscuridad' },
+                      { t: 'metal', icon: '🛡', label: 'Metal' },
+                    ].filter(e => enemyDeckTypes.length === 0 || enemyDeckTypes.includes(e.t)).map(({ t, icon, label }) => {
+                      const count = opponentState.active!.attachedEnergy.filter(x => x === t).length;
+                      return (
+                        <div key={t} className="energy-counter">
+                          <button className="energy-btn-minus" onClick={() => removeEnergy('player2', opponentState.active!.id, t)} disabled={count === 0}>−</button>
+                          <div className="energy-count-badge" style={{ backgroundColor: count > 0 ? energyColors[t] : '#333' }} title={label}>
+                            <span className="energy-badge-icon">{icon}</span>
+                            <span className="energy-badge-count">{count}</span>
+                          </div>
+                          <button className="energy-btn-plus" onClick={() => addEnergy('player2', opponentState.active!.id, t)} disabled={(countAttachedEnergy(opponentState)[t] || 0) >= (enemyEnergyLimits[t] || 999)}>+</button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                <button className="close-edit" onClick={(e) => { e.stopPropagation(); setEditingEnemy(null); }}>✕</button>
+              </div>
             )}
           </div>
-        ))}
-      </div>
-
-      <div className="opponent-active">
-        {opponentState.active ? (
-          <PokemonCard 
-            pokemon={opponentState.active} 
-            showDetails
-          />
         ) : (
           <div 
             className="empty-slot"
@@ -253,11 +392,11 @@ export function BattleField({ player, isCurrentPlayer = false }: Props) {
                 <div className="edit-panel">
                   <div className="edit-field">
                     <label>HP:</label>
-                    <input
-                      type="number"
-                      value={playerState.active.currentHp}
-                      onChange={e => handleEditHp(playerState.active!.id, parseInt(e.target.value))}
-                    />
+                    <div className="hp-controls">
+                      <button className="hp-btn" onClick={() => handleEditHp(playerState.active!.id, playerState.active.currentHp - 10)}>-10</button>
+                      <span className="hp-value">{playerState.active.currentHp}</span>
+                      <button className="hp-btn" onClick={() => handleEditHp(playerState.active!.id, playerState.active.currentHp + 10)}>+10</button>
+                    </div>
                   </div>
                   <div className="edit-field">
                     <label>Estado:</label>
@@ -277,22 +416,43 @@ export function BattleField({ player, isCurrentPlayer = false }: Props) {
                   </div>
                   <div className="edit-field">
                     <label>Energía:</label>
-                    <div className="energy-toggles">
-                      {energyTypes.slice(0, 6).map(e => (
-                        <button
-                          key={e}
-                          className={`energy-toggle ${playerState.active!.attachedEnergy.includes(e) ? 'attached' : ''}`}
-                          style={{ 
-                            backgroundColor: playerState.active!.attachedEnergy.includes(e) ? energyColors[e] : undefined 
-                          }}
-                          onClick={() => handleToggleEnergy(playerState.active!.id, e, playerState.active!.attachedEnergy.includes(e))}
-                        >
-                          {e[0].toUpperCase()}
-                        </button>
-                      ))}
+                    <div className="energy-controls-grid">
+                      {[
+                        { t: 'fire', icon: '🔥', label: 'Fuego' },
+                        { t: 'water', icon: '💧', label: 'Agua' },
+                        { t: 'grass', icon: '🌿', label: 'Planta' },
+                        { t: 'electric', icon: '⚡', label: 'Rayo' },
+                        { t: 'psychic', icon: '🧠', label: 'Psiquica' },
+                        { t: 'fighting', icon: '👊', label: 'Lucha' },
+                        { t: 'darkness', icon: '🌑', label: 'Oscuridad' },
+                        { t: 'metal', icon: '🛡', label: 'Metal' },
+                      ].filter(e => deckEnergyTypes.length === 0 || deckEnergyTypes.includes(e.t)).map(({ t, icon, label }) => {
+                        const count = playerState.active!.attachedEnergy.filter(x => x === t).length;
+                        return (
+                          <div key={t} className="energy-counter">
+                            <button
+                              className="energy-btn-minus"
+                              onClick={() => removeEnergy(player, playerState.active!.id, t)}
+                              disabled={count === 0}
+                            >−</button>
+                            <div
+                              className="energy-count-badge"
+                              style={{ backgroundColor: count > 0 ? energyColors[t] : '#333' }}
+                              title={label}
+                            >
+                              <span className="energy-badge-icon">{icon}</span>
+                              <span className="energy-badge-count">{count}</span>
+                            </div>
+                            <button
+                              className="energy-btn-plus"
+                              onClick={() => addEnergy(player, playerState.active!.id, t)}
+                             disabled={(countAttachedEnergy(playerState)[t] || 0) >= (myEnergyLimits[t] || 999)}>+</button>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
-                  <button className="close-edit" onClick={() => setEditingId(null)}>✕</button>
+                  <button className="close-edit" onClick={(e) => { e.stopPropagation(); setEditingId(null); }}>✕</button>
                 </div>
               )}
             </div>
@@ -319,10 +479,52 @@ export function BattleField({ player, isCurrentPlayer = false }: Props) {
                 onClick={() => playerState.bench[i] && setEditingId(playerState.bench[i]!.id)}
               >
                 {playerState.bench[i] ? (
-                  <PokemonCard 
-                    pokemon={playerState.bench[i]!} 
-                    selected={editingId === playerState.bench[i]!.id}
-                  />
+                  <div className="pokemon-instance">
+                    <PokemonCard 
+                      pokemon={playerState.bench[i]!} 
+                      selected={editingId === playerState.bench[i]!.id}
+                    />
+                    {editingId === playerState.bench[i]!.id && (
+                      <div className="edit-panel">
+                        <div className="edit-field">
+                          <label>HP:</label>
+                          <div className="hp-controls">
+                            <button className="hp-btn" onClick={() => updatePokemonHp(player, playerState.bench[i]!.id, playerState.bench[i]!.currentHp - 10)}>-10</button>
+                            <span className="hp-value">{playerState.bench[i]!.currentHp}</span>
+                            <button className="hp-btn" onClick={() => updatePokemonHp(player, playerState.bench[i]!.id, playerState.bench[i]!.currentHp + 10)}>+10</button>
+                          </div>
+                        </div>
+                        <div className="edit-field">
+                          <label>Energía:</label>
+                          <div className="energy-controls-grid">
+                            {[
+                              { t: 'fire', icon: '🔥', label: 'Fuego' },
+                              { t: 'water', icon: '💧', label: 'Agua' },
+                              { t: 'grass', icon: '🌿', label: 'Planta' },
+                              { t: 'electric', icon: '⚡', label: 'Rayo' },
+                              { t: 'psychic', icon: '🧠', label: 'Psiquica' },
+                              { t: 'fighting', icon: '👊', label: 'Lucha' },
+                              { t: 'darkness', icon: '🌑', label: 'Oscuridad' },
+                              { t: 'metal', icon: '🛡', label: 'Metal' },
+                            ].filter(e => deckEnergyTypes.length === 0 || deckEnergyTypes.includes(e.t)).map(({ t, icon, label }) => {
+                              const count = playerState.bench[i]!.attachedEnergy.filter(x => x === t).length;
+                              return (
+                                <div key={t} className="energy-counter">
+                                  <button className="energy-btn-minus" onClick={() => removeEnergy(player, playerState.bench[i]!.id, t)} disabled={count === 0}>−</button>
+                                  <div className="energy-count-badge" style={{ backgroundColor: count > 0 ? energyColors[t] : '#333' }} title={label}>
+                                    <span className="energy-badge-icon">{icon}</span>
+                                    <span className="energy-badge-count">{count}</span>
+                                  </div>
+                                  <button className="energy-btn-plus" onClick={() => addEnergy(player, playerState.bench[i]!.id, t)} disabled={(countAttachedEnergy(playerState)[t] || 0) >= (myEnergyLimits[t] || 999)}>+</button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <button className="close-edit" onClick={(e) => { e.stopPropagation(); setEditingId(null); }}>✕</button>
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <div className="empty-slot">+</div>
                 )}

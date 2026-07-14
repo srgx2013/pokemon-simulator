@@ -345,17 +345,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
   removeEnergy: (player, pokemonId, energy) => {
     set(state => {
       const playerState = player === 'player1' ? state.gameState.player1 : state.gameState.player2;
-      const updateInstance = (p: PokemonInstance | null): PokemonInstance | null => 
-        p?.id === pokemonId ? { 
-          ...p, 
-          attachedEnergy: p.attachedEnergy.filter(e => e !== energy || 
-            p.attachedEnergy.filter(x => x === energy).length > 
-            p.attachedEnergy.filter(x => x === energy).filter((_, i) => {
-              const firstIndex = p.attachedEnergy.indexOf(energy);
-              return i !== p.attachedEnergy.indexOf(energy, firstIndex + 1);
-            }).length
-          )
-        } : p;
+      const updateInstance = (p: PokemonInstance | null): PokemonInstance | null => {
+        if (p?.id !== pokemonId) return p;
+        // Remover exactamente 1 copia del tipo de energia especificado
+        const idx = p.attachedEnergy.indexOf(energy);
+        if (idx === -1) return p;
+        return {
+          ...p,
+          attachedEnergy: p.attachedEnergy.filter((_, i) => i !== idx),
+        };
+      };
       
       return {
         gameState: {
