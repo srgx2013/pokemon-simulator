@@ -287,26 +287,26 @@ body {
 
 .expanded-empty { text-align: center; color: var(--text-secondary); padding: 1rem; font-size: 0.85rem; }
 
-/* ═══ AI FAB & DRAWER ═══ */
+/* ═══ EXPORT FAB & DRAWER ═══ */
 
-.ai-fab {
+.export-fab {
   position: fixed; bottom: 1.5rem; right: 1.5rem; width: 48px; height: 48px;
   border-radius: 50%; background: var(--accent); border: none; font-size: 1.4rem;
   cursor: pointer; box-shadow: 0 4px 16px rgba(233, 69, 96, 0.4);
   transition: all 0.2s; z-index: 50; display: flex; align-items: center; justify-content: center;
 }
 
-.ai-fab:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(233, 69, 96, 0.6); }
+.export-fab:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(233, 69, 96, 0.6); }
 
-.ai-drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 150; }
+.export-drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 150; }
 
-.ai-drawer {
+.export-drawer {
   position: fixed; top: 0; right: 0; width: 380px; height: 100vh;
   background: var(--secondary); border-left: 1px solid var(--border);
   padding: 1rem; overflow-y: auto; z-index: 151;
 }
 
-.ai-drawer-close { position: absolute; top: 1rem; right: 1rem; background: none; border: none; color: var(--text-secondary); font-size: 1.25rem; cursor: pointer; }
+.export-drawer-close { position: absolute; top: 1rem; right: 1rem; background: none; border: none; color: var(--text-secondary); font-size: 1.25rem; cursor: pointer; }
 
 /* ═══ POKEMON CARD ═══ */
 
@@ -431,23 +431,72 @@ body {
 .scenario-list button { padding: 0.6rem; background: var(--primary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); cursor: pointer; text-align: left; font-size: 0.8rem; }
 .scenario-list button:hover { border-color: var(--accent); }
 
-/* ═══ AI PANEL ═══ */
+/* ═══ EXPORT PANEL ═══ */
 
-.ai-panel { display: flex; flex-direction: column; height: 100%; }
-.ai-header { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
-.ai-header h3 { margin: 0; }
-.api-key-input { padding: 0.5rem; background: var(--primary); border: 1px solid var(--border); border-radius: 4px; color: var(--text-primary); font-size: 0.85rem; }
+.export-panel {
+  display: flex; flex-direction: column; height: 100%;
+  background: var(--secondary); border-radius: 12px;
+  border: 1px solid var(--border); overflow: hidden;
+}
 
-.tabs { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem; }
-.tabs button { flex: 1; padding: 0.5rem; background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 0.8rem; }
-.tabs button.active { color: var(--accent); border-bottom: 2px solid var(--accent); }
-.tab-content { flex: 1; overflow-y: auto; }
-.analysis-content pre, .ai-response { font-size: 0.8rem; line-height: 1.5; white-space: pre-wrap; color: var(--text-secondary); }
-.no-data { text-align: center; color: var(--text-secondary); padding: 2rem; }
-.ai-actions { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
-.analyze-btn { width: 100%; padding: 0.75rem; background: var(--accent); color: white; border: none; border-radius: 6px; font-size: 0.85rem; cursor: pointer; }
-.analyze-btn:hover { filter: brightness(1.1); }
-.analyze-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.export-header {
+  padding: 1rem; border-bottom: 1px solid var(--border);
+}
+
+.export-header h3 {
+  margin: 0 0 0.5rem 0; font-size: 1rem; color: var(--accent);
+}
+
+.export-subtitle {
+  margin: 0; font-size: 0.75rem; color: var(--text-secondary); line-height: 1.4;
+}
+
+.export-content {
+  padding: 1rem; display: flex; flex-direction: column; gap: 1rem;
+}
+
+.copy-big-btn {
+  display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+  padding: 1.2rem 1.5rem;
+  background: linear-gradient(135deg, var(--accent) 0%, #ff6b6b 100%);
+  border: none; border-radius: 12px; color: white; font-size: 1.1rem; font-weight: 700;
+  cursor: pointer; transition: all 0.3s;
+  box-shadow: 0 4px 15px rgba(233, 69, 96, 0.3);
+}
+
+.copy-big-btn:hover {
+  transform: translateY(-2px); box-shadow: 0 6px 25px rgba(233, 69, 96, 0.5);
+}
+
+.copy-big-btn:active { transform: translateY(0); }
+
+.copy-big-btn.copied {
+  background: linear-gradient(135deg, var(--success) 0%, #22c55e 100%);
+  box-shadow: 0 4px 15px rgba(74, 222, 128, 0.3);
+}
+
+.export-hint {
+  font-size: 0.75rem; color: var(--text-secondary); line-height: 1.5;
+  text-align: center; margin: 0;
+}
+
+.preview-toggle {
+  border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+}
+
+.preview-toggle summary {
+  padding: 0.5rem 0.75rem; background: var(--primary); cursor: pointer;
+  font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; user-select: none;
+}
+
+.preview-toggle summary:hover { background: rgba(233, 69, 96, 0.1); }
+
+.markdown-preview {
+  margin: 0; padding: 1rem; background: var(--primary); font-size: 0.65rem;
+  line-height: 1.5; white-space: pre-wrap; word-break: break-word;
+  color: var(--text-secondary); max-height: 400px; overflow-y: auto;
+  border-top: 1px solid var(--border);
+}
 
 /* ═══ SCENARIO EDITOR ═══ */
 
@@ -545,6 +594,6 @@ body {
   .bench-slot { width: 80px; min-height: 65px; }
   .active-slot { min-width: 110px; min-height: 80px; }
   .deck-selection-grid { grid-template-columns: 1fr; }
-  .ai-drawer { width: 100%; }
+  .export-drawer { width: 100%; }
   .picker-dropdown { width: 200px; }
 }

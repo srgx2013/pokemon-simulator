@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useGameStore } from './store/gameStore';
 import { BattleField, DeckSelector } from './components/BattleField';
-import { AIPanel } from './components/AIPanel';
+import { ExportPanel } from './components/ExportPanel';
 import { ScenarioEditor } from './components/ScenarioEditor';
 
 function App() {
@@ -59,18 +59,18 @@ function App() {
         </main>
       )}
 
-      {/* AI Floating Button */}
+      {/* Export Floating Button */}
       {gameState.player1.deck.length > 0 && !showAI && (
-        <button className="ai-fab" onClick={() => setShowAI(true)} title="AI Analysis">
-          🤖
+        <button className="export-fab" onClick={() => setShowAI(true)} title="Exportar Estado">
+          📋
         </button>
       )}
 
       {showAI && (
-        <div className="ai-drawer-overlay" onClick={() => setShowAI(false)}>
-          <div className="ai-drawer" onClick={e => e.stopPropagation()}>
-            <button className="ai-drawer-close" onClick={() => setShowAI(false)}>✕</button>
-            <AIPanel />
+        <div className="export-drawer-overlay" onClick={() => setShowAI(false)}>
+          <div className="export-drawer" onClick={e => e.stopPropagation()}>
+            <button className="export-drawer-close" onClick={() => setShowAI(false)}>✕</button>
+            <ExportPanel />
           </div>
         </div>
       )}
