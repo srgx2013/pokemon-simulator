@@ -53,6 +53,46 @@ interface GameStore {
   getStateForAI: () => string;
 }
 
+const AUTO_SAVE_KEY = 'pokemon-autosave';
+
+// Restore the in-progress game (if any) from the auto-save key. Returns null
+// for absent, corrupted, or malformed data — never throws, even when
+// localStorage is unavailable (private mode) or the JSON fails to parse.
+const loadAutoSave = (): GameState | null => {
+  try {
+    const raw = localStorage.getItem(AUTO_SAVE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      (parsed.currentPlayer === 'player1' || parsed.currentPlayer === 'player2') &&
+      isValidPlayerState(parsed.player1) &&
+      isValidPlayerState(parsed.player2)
+    ) {
+      return parsed as GameState;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+// Only accept player states whose arrays the app actually dereferences.
+// Mirrors loadCustomDecks(): parseable-but-malformed shapes fall back to null
+// instead of crashing at startup (e.g. gameState.player1.deck.length).
+const isValidPlayerState = (player: unknown): boolean => {
+  if (player === null || typeof player !== 'object') return false;
+  const p = player as Record<string, unknown>;
+  return (
+    Array.isArray(p.deck) &&
+    Array.isArray(p.hand) &&
+    Array.isArray(p.discardPile) &&
+    Array.isArray(p.prizes) &&
+    Array.isArray(p.bench)
+  );
+};
+
 const createEmptyPlayerState = (): PlayerState => ({
   deck: [],
   hand: [],
@@ -76,7 +116,7 @@ const createInitialGameState = (): GameState => ({
 });
 
 export const useGameStore = create<GameStore>((set, get) => ({
-  gameState: createInitialGameState(),
+  gameState: loadAutoSave() ?? createInitialGameState(),
   selectedScenario: null,
   scenarios: [],
   customDecks: [],
@@ -511,3 +551,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return exportStateToMarkdown(gameState, player1Deck, player2Deck);
   },
 }));
+
+// Persist the in-progress game after every state change so nothing is lost
+// when the page reloads or the browser kills the tab without firing an event.
+// Registered once at module level; startGame/loadScenario still overwrite
+// gameState normally and this simply mirrors whatever is current.
+useGameStore.subscribe((state) => {
+  try {
+    localStorage.setItem(AUTO_SAVE_KEY, JSON.stringify(state.gameState));
+  } catch {
+    // localStorage can throw when full or unavailable (private mode) — ignore.
+  }
+});

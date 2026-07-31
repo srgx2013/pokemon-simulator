@@ -418,3 +418,94 @@ describe('placePokemonFromDeck', () => {
     expect(benchMon!.card.abilities).toEqual([{ name: 'Bench Draw', text: 'Draw 1 card', type: 'ability' }]);
   });
 });
+
+describe('auto-save', () => {
+  // The initial gameState is captured when the store module is first
+  // evaluated, so the restore/fallback tests re-import the module after
+  // priming the mocked localStorage.
+  const reloadStore = async () => {
+    vi.resetModules();
+    const { useGameStore: freshStore } = await import('./gameStore');
+    return freshStore;
+  };
+
+  it('restores a saved gameState from localStorage as the initial store state', async () => {
+    const savedState = {
+      player1: { deck: [], hand: [], discardPile: [], prizes: [], active: null, bench: [] },
+      player2: { deck: [], hand: [], discardPile: [], prizes: [], active: null, bench: [] },
+      currentPlayer: 'player2',
+      turn: 3,
+      phase: 'turn',
+      logs: [],
+      mulligan: { player1: false, player2: false },
+    };
+    store['pokemon-autosave'] = JSON.stringify(savedState);
+
+    const freshStore = await reloadStore();
+
+    expect(freshStore.getState().gameState).toEqual(savedState);
+  });
+
+  it('falls back to the initial state when the auto-save JSON is corrupted', async () => {
+    store['pokemon-autosave'] = '{ not valid json';
+
+    const freshStore = await reloadStore();
+
+    const { gameState } = freshStore.getState();
+    expect(gameState.player1.deck).toHaveLength(0);
+    expect(gameState.currentPlayer).toBe('player1');
+  });
+
+  it('falls back to the initial state when the auto-save JSON has the wrong shape', async () => {
+    store['pokemon-autosave'] = JSON.stringify({ player1: {}, player2: {}, currentPlayer: 'x' });
+
+    const freshStore = await reloadStore();
+
+    const { gameState } = freshStore.getState();
+    expect(gameState.player1.deck).toHaveLength(0);
+    expect(gameState.phase).toBe('setup');
+  });
+
+  it('falls back to the initial state when no auto-save exists', async () => {
+    delete store['pokemon-autosave'];
+
+    const freshStore = await reloadStore();
+
+    const { gameState } = freshStore.getState();
+    expect(gameState.player1.deck).toHaveLength(0);
+    expect(gameState.phase).toBe('setup');
+  });
+
+  it('persists gameState under the auto-save key on every store mutation', () => {
+    useGameStore.getState().setPlayer1Deck(fullDeck);
+    useGameStore.getState().setPlayer2Deck(fullDeck);
+    useGameStore.getState().startGame();
+
+    const saved = JSON.parse(store['pokemon-autosave']);
+    expect(saved.player1.deck).toHaveLength(60);
+    expect(saved.player2.deck).toHaveLength(60);
+    expect(saved.currentPlayer).toBe('player1');
+  });
+
+  it('persists mutations to the auto-save key after restoring from it', async () => {
+    const savedState = {
+      player1: { deck: [], hand: [], discardPile: [], prizes: [], active: null, bench: [] },
+      player2: { deck: [], hand: [], discardPile: [], prizes: [], active: null, bench: [] },
+      currentPlayer: 'player2',
+      turn: 3,
+      phase: 'turn',
+      logs: [],
+      mulligan: { player1: false, player2: false },
+    };
+    store['pokemon-autosave'] = JSON.stringify(savedState);
+
+    const freshStore = await reloadStore();
+    freshStore.getState().setPlayer1Deck(fullDeck);
+    freshStore.getState().setPlayer2Deck(fullDeck);
+    freshStore.getState().startGame();
+
+    const saved = JSON.parse(store['pokemon-autosave']);
+    expect(saved.player1.deck).toHaveLength(60);
+    expect(saved.currentPlayer).toBe('player1');
+  });
+});
