@@ -178,16 +178,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const card = playerState.deck[cardIndex];
       if (!card || !('hp' in card)) return state;
       
+      // Spread the full card so optional fields (abilities, evolvesFrom,
+      // evolvesTo, weakness, resistance, imageUrl) survive the move, while
+      // defaults keep legacy pool cards that lack those fields working.
+      const cardData = card as unknown as PokemonCard;
       const pokemonCard: PokemonCard = {
+        ...cardData,
         id: uuidv4(),
-        name: card.name,
-        stage: (card as any).stage || 'basic',
-        hp: card.hp || 100,
-        type: (card as any).type || 'psychic',
-        attacks: (card as any).attacks || [],
-        weakness: (card as any).weakness,
-        retreatCost: (card as any).retreatCost || 1,
-        rarity: (card as any).rarity || 'common',
+        stage: cardData.stage || 'basic',
+        hp: cardData.hp || 100,
+        type: cardData.type || 'psychic',
+        attacks: cardData.attacks || [],
+        retreatCost: cardData.retreatCost || 1,
+        rarity: cardData.rarity || 'common',
       };
       
       const instance: PokemonInstance = {

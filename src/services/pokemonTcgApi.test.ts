@@ -183,3 +183,106 @@ describe('convertApiEnergy', () => {
     expect(result).toEqual({ name: 'Growing Grass Energy', type: 'special', quantity: 1 });
   });
 });
+
+describe('convertApiCard', () => {
+  it('mapea abilities al formato interno', async () => {
+    const { convertApiCard } = await import('./pokemonTcgApi');
+
+    const result = convertApiCard({
+      id: 'sv7-76',
+      name: 'Drakloak',
+      supertype: 'Pokémon',
+      hp: '90',
+      types: ['Psychic'],
+      subtypes: ['Stage 1'],
+      attacks: [],
+      abilities: [
+        {
+          name: 'Summoning Signal',
+          text: 'Look at the top 2 cards of your deck and choose 1 of them.',
+          type: 'Ability',
+        },
+      ],
+      set: { id: 'sv7', name: 'Stellar Crown' },
+      number: '76',
+      images: { small: '', large: '' },
+    });
+
+    expect(result.abilities).toEqual([
+      {
+        name: 'Summoning Signal',
+        text: 'Look at the top 2 cards of your deck and choose 1 of them.',
+        type: 'Ability',
+      },
+    ]);
+    expect(result.name).toBe('Drakloak');
+  });
+
+  it('devuelve abilities vacío cuando la carta no tiene habilidades', async () => {
+    const { convertApiCard } = await import('./pokemonTcgApi');
+
+    const result = convertApiCard({
+      id: 'sv7-75',
+      name: 'Dreepy',
+      supertype: 'Pokémon',
+      hp: '60',
+      types: ['Psychic'],
+      subtypes: ['Basic'],
+      attacks: [],
+      set: { id: 'sv7', name: 'Stellar Crown' },
+      number: '75',
+      images: { small: '', large: '' },
+    });
+
+    expect(result.abilities).toEqual([]);
+  });
+});
+
+describe('convertTcgdexToCardData', () => {
+  it('mapea abilities de TCGdex (campo effect) al formato CardData', async () => {
+    const { convertTcgdexToCardData } = await import('./pokemonTcgApi');
+
+    const result = convertTcgdexToCardData({
+      id: 'sv7-76',
+      name: 'Drakloak',
+      category: 'Pokemon',
+      hp: 90,
+      types: ['Psychic'],
+      stage: 'Stage1',
+      abilities: [
+        {
+          name: 'Summoning Signal',
+          effect: 'Look at the top 2 cards of your deck and choose 1 of them.',
+          type: 'Ability',
+        },
+      ],
+      set: { id: 'sv7', name: 'Stellar Crown' },
+      localId: '76',
+    });
+
+    expect(result?.abilities).toEqual([
+      {
+        name: 'Summoning Signal',
+        text: 'Look at the top 2 cards of your deck and choose 1 of them.',
+        type: 'Ability',
+      },
+    ]);
+  });
+
+  it('deja abilities undefined cuando TCGdex no trae habilidades', async () => {
+    const { convertTcgdexToCardData } = await import('./pokemonTcgApi');
+
+    const result = convertTcgdexToCardData({
+      id: 'sv7-75',
+      name: 'Dreepy',
+      category: 'Pokemon',
+      hp: 60,
+      types: ['Psychic'],
+      stage: 'Basic',
+      set: { id: 'sv7', name: 'Stellar Crown' },
+      localId: '75',
+    });
+
+    expect(result?.abilities).toBeUndefined();
+  });
+});

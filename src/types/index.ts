@@ -22,6 +22,7 @@ export interface PokemonCard {
   evolvesFrom?: string;
   evolvesTo?: string;
   attacks: Attack[];
+  abilities?: Ability[];
   weakness?: { type: string; value: string };
   resistance?: { type: string; value: string };
   retreatCost: number;
@@ -34,6 +35,12 @@ export interface Attack {
   cost: EnergyType[];
   damage: string;
   description: string;
+}
+
+export interface Ability {
+  name: string;
+  text: string;
+  type: string;
 }
 
 export interface TrainerCard {

@@ -15,6 +15,7 @@ import type {
   EnergyType,
   StatusCondition,
   DeckPreset,
+  Ability,
 } from '../types';
 
 // ─── Helpers de traducción ───────────────────────────────────────────────────
@@ -168,6 +169,7 @@ interface FormattedPokemon {
     description: string;
     usable: boolean;
   }[];
+  abilities: Ability[];
   evolutions: EvolutionOption[];
 }
 
@@ -204,6 +206,7 @@ function formatPokemon(
       description: a.description || '—',
       usable: canPayCost(a.cost ?? [], p.attachedEnergy),
     })),
+    abilities: p.card.abilities ?? [],
     evolutions,
   };
 }
@@ -232,6 +235,13 @@ function renderPokemonSection(
       if (a.description && a.description !== '—') {
         lines.push(`${indent}    → ${a.description}`);
       }
+    }
+  }
+
+  if (f.abilities.length > 0) {
+    lines.push(`${indent}- **Habilidades:**`);
+    for (const ab of f.abilities) {
+      lines.push(`${indent}  - ⭐ ${ab.name}: ${ab.text}`);
     }
   }
 
@@ -264,6 +274,13 @@ function renderBenchSection(
       block += `    Ataques:\n`;
       for (const a of f.attacks) {
         block += `      - ${a.name}: **${a.damage}** daño (${a.cost}) ${a.usable ? '✅' : '❌'}\n`;
+      }
+    }
+
+    if (f.abilities.length > 0) {
+      block += `    **Habilidades:**\n`;
+      for (const ab of f.abilities) {
+        block += `      - ⭐ ${ab.name}: ${ab.text}\n`;
       }
     }
 

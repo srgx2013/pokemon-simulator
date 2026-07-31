@@ -361,3 +361,60 @@ describe('saveScenario / loadScenario', () => {
     expect(useGameStore.getState().gameState.phase).toBe('turn');
   });
 });
+
+describe('placePokemonFromDeck', () => {
+  it('copia abilities y campos opcionales a la instancia en Activo y Bench', () => {
+    const deckWithAbilities: DeckPreset = {
+      name: 'Ability Deck',
+      description: 'Pokemon con habilidades',
+      pokemon: [
+        {
+          name: 'Run Errand',
+          stage: 'basic',
+          hp: 80,
+          type: 'psychic',
+          attacks: [],
+          retreatCost: 1,
+          rarity: 'common',
+          abilities: [{ name: 'Run Errand', text: 'Draw 2 cards', type: 'ability' }],
+          evolvesFrom: 'Dreepy',
+          resistance: { type: 'fighting', value: '-30' },
+        },
+        {
+          name: 'Bench Mon',
+          stage: 'basic',
+          hp: 60,
+          type: 'psychic',
+          attacks: [],
+          retreatCost: 1,
+          rarity: 'common',
+          abilities: [{ name: 'Bench Draw', text: 'Draw 1 card', type: 'ability' }],
+        },
+      ],
+      trainers: [{ name: 'Trainer', type: 'item', description: '', rarity: 'uncommon' }],
+      energies: [{ type: 'psychic', quantity: 2 }],
+    };
+
+    useGameStore.getState().setPlayer1Deck(deckWithAbilities);
+    useGameStore.getState().setPlayer2Deck(deckWithAbilities);
+    useGameStore.getState().startGame();
+
+    // Activo: colocar la primera carta Pokémon del pool
+    const activeIdx = useGameStore.getState().gameState.player1.deck.findIndex(c => 'stage' in c);
+    useGameStore.getState().placePokemonFromDeck('player1', -1, activeIdx);
+
+    const active = useGameStore.getState().gameState.player1.active;
+    expect(active).not.toBeNull();
+    expect(active!.card.abilities).toEqual([{ name: 'Run Errand', text: 'Draw 2 cards', type: 'ability' }]);
+    expect(active!.card.evolvesFrom).toBe('Dreepy');
+    expect(active!.card.resistance).toEqual({ type: 'fighting', value: '-30' });
+
+    // Bench: colocar la segunda carta Pokémon del pool restante
+    const benchIdx = useGameStore.getState().gameState.player1.deck.findIndex(c => 'stage' in c);
+    useGameStore.getState().placePokemonFromDeck('player1', 0, benchIdx);
+
+    const benchMon = useGameStore.getState().gameState.player1.bench[0];
+    expect(benchMon).not.toBeNull();
+    expect(benchMon!.card.abilities).toEqual([{ name: 'Bench Draw', text: 'Draw 1 card', type: 'ability' }]);
+  });
+});

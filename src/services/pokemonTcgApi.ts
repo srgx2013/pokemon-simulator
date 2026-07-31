@@ -297,6 +297,15 @@ export function convertTcgdexToCardData(tcgCard: any): CardData | null {
     }));
   }
 
+  // Mapear abilities (TCGdex usa `effect`, no `text`)
+  if (tcgCard.abilities && Array.isArray(tcgCard.abilities)) {
+    base.abilities = tcgCard.abilities.map((a: any) => ({
+      name: a.name || '',
+      text: a.effect || a.text || '',
+      type: a.type || 'Ability',
+    }));
+  }
+
   // Mapear weaknesses
   if (tcgCard.weaknesses && Array.isArray(tcgCard.weaknesses)) {
     base.weaknesses = tcgCard.weaknesses.map((w: any) => ({
@@ -381,7 +390,13 @@ export function convertApiCard(apiCard: CardData): any {
     damage: a.damage,
     description: a.text,
   }));
-  
+
+  const abilities = (apiCard.abilities || []).map(a => ({
+    name: a.name,
+    text: a.text,
+    type: a.type,
+  }));
+
   return {
     name: apiCard.name,
     stage,
@@ -389,6 +404,7 @@ export function convertApiCard(apiCard: CardData): any {
     type: (apiCard.types || ['normal'])[0].toLowerCase(),
     evolvesFrom: apiCard.evolvesFrom,
     attacks,
+    abilities,
     weakness: apiCard.weaknesses?.[0] ? {
       type: apiCard.weaknesses[0].type.toLowerCase(),
       value: apiCard.weaknesses[0].value,
