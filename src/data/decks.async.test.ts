@@ -10,7 +10,7 @@ vi.mock('../services/pokemonTcgApi', () => ({
   convertTcgdexToCardData: vi.fn(),
 }));
 
-import { parseDeckListWithApi, cardDatabase } from './decks';
+import { parseDeckListWithApi } from './decks';
 import * as api from '../services/pokemonTcgApi';
 
 function mockCard(name: string, supertype: string, subtypes: string[] = []) {

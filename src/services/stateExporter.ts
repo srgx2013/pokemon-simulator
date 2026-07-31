@@ -388,7 +388,7 @@ function findPlayableCards(
     } else if ('type' in card && (card as EnergyCard).quantity !== undefined) {
       const energy = card as EnergyCard;
       result.push({
-        name: energy.name || `${energy.energyType || energy.type} Energy`,
+        name: energy.name || `${energy.type} Energy`,
         type: 'Energía',
         action: 'Fijar a un Pokémon en campo',
       });
@@ -442,7 +442,6 @@ export function exportStateToMarkdown(
   options: ExportOptions = {},
 ): string {
   const { player1, player2, currentPlayer, turn } = gameState;
-  const locale = options.locale ?? 'es';
 
   const side: SideLabel = currentPlayer === 'player1' ? 'Tú' : 'Rival';
   const isPlayer1Turn = currentPlayer === 'player1';

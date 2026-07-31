@@ -162,7 +162,6 @@ export function parseDeckList(text: string): { pokemon: any[], trainers: any[], 
   const energies: any[] = [];
   const skipped: string[] = [];
   
-  const energyKeywords = ['psychic', 'fire', 'water', 'grass', 'electric', 'fighting', 'darkness', 'metal', 'dragon', 'fairy', 'normal', 'special'];
   const trainerNames = [
     "Lillie's Determination", 'Iono', "Boss's Orders", 'Buddy-Buddy Poffin',
     'Counter Catcher', 'Night Stretcher', 'Jamming Tower', 'Hilda',
@@ -360,7 +359,6 @@ import { fetchCard, convertApiCard, convertApiTrainer, convertApiEnergy, fetchCa
 // ── Fallback heurístico cuando la API no responde ──
 // Solo se usa cuando la API de Pokémon TCG no puede identificar una carta.
 // Clasifica por nombre como respaldo (energía > trainer > Pokémon genérico).
-const FALLBACK_ENERGY_NAMES = ['psychic', 'fire', 'water', 'grass', 'electric', 'fighting', 'darkness', 'metal'];
 
 const FALLBACK_TRAINER_NAMES = [
   "Lillie's", "Boss's", 'Iono', 'Arven', 'Hilda', "Professor's", 'Professor',
@@ -570,8 +568,8 @@ export async function parseDeckListWithApi(
         } else if (supertype === 'Energy') {
           const energy = convertApiEnergy(tcgCard);
           if (energy) {
-            const existing = energiesMap.get(energy.type) || 0;
-            energiesMap.set(energy.type, existing + entry.quantity);
+                const existingQty = energiesMap.get(energy.type)?.quantity ?? 0;
+                energiesMap.set(energy.type, { name: energy.name, type: energy.type, quantity: existingQty + entry.quantity });
           }
         } else {
           // TCGdex devolvió supertype desconocido — heuristics final

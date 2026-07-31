@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useGameStore } from './gameStore';
-import { dragapultDeck } from '../data/decks';
 
 // Mock localStorage
 const store: Record<string, string> = {};
@@ -14,21 +13,6 @@ vi.stubGlobal('localStorage', {
 });
 import type { DeckPreset } from '../types';
 
-// Helper: create a minimal deck for testing
-const testDeck: DeckPreset = {
-  name: 'Test Deck',
-  description: 'For testing',
-  pokemon: [
-    { name: 'Dreepy', stage: 'basic', hp: 70, type: 'psychic', attacks: [], retreatCost: 1, rarity: 'common' },
-    { name: 'Dreepy', stage: 'basic', hp: 70, type: 'psychic', attacks: [], retreatCost: 1, rarity: 'common' },
-  ],
-  trainers: [
-    { name: 'Rare Candy', type: 'item', description: '', rarity: 'uncommon' },
-  ],
-  energies: [
-    { type: 'psychic', quantity: 2 },
-  ],
-};
 
 // Total: 2 pokemon + 1 trainer + 2 energies = 5 cards
 // After startGame: 7 hand requires more cards, so we need at least 13 (7+6 prizes)
@@ -50,7 +34,7 @@ const fullDeck: DeckPreset = {
     description: '',
     rarity: 'uncommon' as const,
   })),
-  energies: Array.from({ length: 20 }, (_, i) => ({
+  energies: Array.from({ length: 20 }, (_, _i) => ({
     type: 'psychic' as const,
     quantity: 1,
   })),

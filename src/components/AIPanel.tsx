@@ -160,7 +160,7 @@ ODDS: Win: X% | Lose: Y% | Draw: Z%
             {(() => {
               const canKO = player1.active.card.attacks.some((atk: { damage: string }) => {
                 const dmg = parseInt(atk.damage.replace(/[^0-9]/g, '')) || 0;
-                return dmg >= player2.active.currentHp;
+                return dmg >= player2.active!.currentHp;
               });
               return canKO
                 ? <span className="ko-yes">🎯 Podés noquear este turno</span>
