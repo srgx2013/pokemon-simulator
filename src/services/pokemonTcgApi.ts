@@ -1,6 +1,8 @@
 // Pokémon TCG API Integration
 // Docs: https://docs.pokemontcg.io/
 
+import type { EnergyType } from '../types';
+
 const API_BASE = 'https://api.pokemontcg.io/v2';
 const CACHE_KEY = 'pokemon_tcg_cache';
 
@@ -290,7 +292,7 @@ export function convertTcgdexToCardData(tcgCard: any): CardData | null {
   if (tcgCard.attacks && Array.isArray(tcgCard.attacks)) {
     base.attacks = tcgCard.attacks.map((a: any) => ({
       name: a.name || '',
-      cost: a.cost || [],
+      cost: normalizeEnergyCost(a.cost),
       convertedEnergyCost: (a.cost || []).length,
       damage: a.damage ? String(a.damage) : '0',
       text: a.effect || '',
@@ -378,6 +380,25 @@ export interface ResistanceData {
   value: string;
 }
 
+// Normaliza el costo de ataque de fuentes externas (Pokémon TCG API / TCGdex)
+// al EnergyType interno: 'Grass' -> 'grass', 'Colorless' -> 'normal', 'Lightning' -> 'electric', etc.
+export function normalizeEnergyCost(cost?: string[]): EnergyType[] {
+  const map: Record<string, EnergyType> = {
+    Grass: 'grass',
+    Fire: 'fire',
+    Water: 'water',
+    Lightning: 'electric',
+    Psychic: 'psychic',
+    Fighting: 'fighting',
+    Darkness: 'darkness',
+    Metal: 'metal',
+    Dragon: 'dragon',
+    Fairy: 'fairy',
+    Colorless: 'normal',
+  };
+  return (cost || []).map((c) => map[c] ?? (c.toLowerCase() as EnergyType));
+}
+
 // Convertir formato API a formato interno
 export function convertApiCard(apiCard: CardData): any {
   const stage = apiCard.subtypes?.includes('Stage 2') ? 'stage2' 
@@ -386,7 +407,7 @@ export function convertApiCard(apiCard: CardData): any {
   
   const attacks = (apiCard.attacks || []).map(a => ({
     name: a.name,
-    cost: a.cost,
+    cost: normalizeEnergyCost(a.cost),
     damage: a.damage,
     description: a.text,
   }));

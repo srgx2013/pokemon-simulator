@@ -184,6 +184,28 @@ describe('convertApiEnergy', () => {
   });
 });
 
+describe('normalizeEnergyCost', () => {
+  it('mapea todos los tipos de la API al EnergyType interno', async () => {
+    const { normalizeEnergyCost } = await import('./pokemonTcgApi');
+
+    const result = normalizeEnergyCost(['Grass', 'Fire', 'Water', 'Lightning', 'Psychic', 'Fighting', 'Darkness', 'Metal', 'Dragon', 'Fairy', 'Colorless']);
+
+    expect(result).toEqual(['grass', 'fire', 'water', 'electric', 'psychic', 'fighting', 'darkness', 'metal', 'dragon', 'fairy', 'normal']);
+  });
+
+  it('devuelve [] cuando el costo es undefined', async () => {
+    const { normalizeEnergyCost } = await import('./pokemonTcgApi');
+
+    expect(normalizeEnergyCost(undefined)).toEqual([]);
+  });
+
+  it('hace fallback a minúscula para tipos desconocidos', async () => {
+    const { normalizeEnergyCost } = await import('./pokemonTcgApi');
+
+    expect(normalizeEnergyCost(['Unknown', 'Warp'])).toEqual(['unknown', 'warp']);
+  });
+});
+
 describe('convertApiCard', () => {
   it('mapea abilities al formato interno', async () => {
     const { convertApiCard } = await import('./pokemonTcgApi');
@@ -236,6 +258,38 @@ describe('convertApiCard', () => {
 
     expect(result.abilities).toEqual([]);
   });
+
+  it('normaliza cost de ataque importado para que canPayCost lo acepte (regresión Crustle)', async () => {
+    const { convertApiCard } = await import('./pokemonTcgApi');
+    const { canPayCost } = await import('./stateExporter');
+
+    const result = convertApiCard({
+      id: 'sv7-94',
+      name: 'Crustle',
+      supertype: 'Pokémon',
+      hp: '150',
+      types: ['Grass'],
+      subtypes: ['Stage 1'],
+      attacks: [
+        {
+          name: 'Superb Scissors',
+          cost: ['Grass', 'Colorless', 'Colorless'],
+          convertedEnergyCost: 3,
+          damage: '120',
+          text: "This attack's damage isn't affected by any effects on your opponent's Active Pokémon.",
+        },
+      ],
+      set: { id: 'sv7', name: 'Stellar Crown' },
+      number: '94',
+      images: { small: '', large: '' },
+    });
+
+    const attack = result.attacks[0];
+    expect(attack.cost).toEqual(['grass', 'normal', 'normal']);
+    // El bug original: el cost capitalizado de la API ('Colorless') nunca matcheaba
+    // en canPayCost, por lo que todo ataque importado salía ❌ aunque fuera pagable.
+    expect(canPayCost(attack.cost, ['Spiky Energy', 'Growing Grass Energy', 'Mist Energy'])).toBe(true);
+  });
 });
 
 describe('convertTcgdexToCardData', () => {
@@ -284,5 +338,30 @@ describe('convertTcgdexToCardData', () => {
     });
 
     expect(result?.abilities).toBeUndefined();
+  });
+
+  it('normaliza el costo de los ataques de TCGdex al EnergyType interno', async () => {
+    const { convertTcgdexToCardData } = await import('./pokemonTcgApi');
+
+    const result = convertTcgdexToCardData({
+      id: 'sv7-76',
+      name: 'Drakloak',
+      category: 'Pokemon',
+      hp: 90,
+      types: ['Lightning'],
+      stage: 'Stage1',
+      attacks: [
+        {
+          name: 'Thunder Jolt',
+          cost: ['Lightning', 'Colorless'],
+          damage: '30',
+          effect: '',
+        },
+      ],
+      set: { id: 'sv7', name: 'Stellar Crown' },
+      localId: '76',
+    });
+
+    expect(result?.attacks?.[0].cost).toEqual(['electric', 'normal']);
   });
 });
