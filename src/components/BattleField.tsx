@@ -328,7 +328,7 @@ export function BattleField({ player }: { player: 'player1' | 'player2' }) {
       </div>
     );
 
-    const zoneClick = (zone: 'prizes' | 'deck' | 'discard') => { setExpandedZone({ player: s, zone }); setZoneFilter(''); setZoneTab('all'); };
+    const zoneClick = (zone: 'prizes' | 'deck' | 'discard' | 'hand') => { setExpandedZone({ player: s, zone }); setZoneFilter(''); setZoneTab('all'); };
 
     const prizes = (
       <div className="zone prizes-zone" onClick={() => zoneClick('prizes')}>
@@ -351,6 +351,10 @@ export function BattleField({ player }: { player: 'player1' | 'player2' }) {
           <div className={`zone ${first}-zone`} onClick={() => zoneClick(first as 'deck' | 'discard')}>
             <div className="zone-title">{info[first as keyof typeof info].title}</div>
             <div className="zone-count big">{info[first as keyof typeof info].len}</div>
+          </div>
+          <div className="zone hand-zone" onClick={() => zoneClick('hand')}>
+            <div className="zone-title">🃏 Mano</div>
+            <div className="zone-count big">{st.hand.length}</div>
           </div>
           <div className={`zone ${second}-zone`} onClick={() => zoneClick(second as 'deck' | 'discard')}>
             <div className="zone-title">{info[second as keyof typeof info].title}</div>

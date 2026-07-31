@@ -130,9 +130,11 @@ body {
 
 .deck-zone { margin-bottom: 0.5rem; min-height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .discard-zone { min-height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.hand-zone { min-height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-color: rgba(99, 179, 237, 0.25); }
 
 .playmat-side.opponent .deck-zone { border-color: rgba(251, 191, 36, 0.2); }
 .playmat-side.opponent .discard-zone { border-color: rgba(251, 191, 36, 0.15); }
+.playmat-side.opponent .hand-zone { border-color: rgba(251, 191, 36, 0.15); }
 
 /* ═══ CENTER — Active + Bench ═══ */
 
