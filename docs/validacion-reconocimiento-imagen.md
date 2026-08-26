@@ -41,12 +41,13 @@
 
 Reglas del formato:
 
+- `player1` = **tu lado** (el jugador de abajo en TCG Live, desde cuya perspectiva se tomó la captura). `player2` = **el rival** (arriba). Si al importar queda al revés, usá el botón **⇅ Intercambiar lados** de la app.
 - `active` / `bench`: objetos con `name` + opcionales (`hp`, `currentHp`, `stage`, `type`, `status`, `attachedEnergy`, `retreatCost`). `bench` máximo 5.
-- Zonas `hand` / `discard` / `deck`: arrays de `{ "name": "...", "kind": "pokemon|trainer|energy" }` o strings simples.
+- Zonas `hand` / `discard` / `deck`: arrays de `{ "name": "...", "kind": "pokemon|trainer|energy" }` o strings simples. `hand` y `deck` también aceptan un **número** (cantidad de cartas boca abajo / restantes en el mazo).
 - `prizes`: número (cantidad, cartas desconocidas) **o** lista de nombres.
 - `attachedEnergy` en inglés: `fire, water, grass, electric, psychic, fighting, darkness, metal, dragon, fairy, normal`.
 - `status`: `none, poisoned, paralyzed, asleep, confused`.
-- Cartas boca abajo (mano del rival, premios): usar la **cantidad** como número.
+- Cartas boca abajo (mano del rival, premios) y el mazo restante: usar la **cantidad** como número.
 
 ## Prompt para la IA (listo para copiar)
 
@@ -71,11 +72,16 @@ alrededor), en exactamente este formato:
 }
 
 Reglas:
+- player1 = tu lado (abajo), player2 = el rival (arriba).
+- Usá los nombres de las cartas EXACTAMENTE como aparecen en la carta
+  (en inglés si la carta está en inglés). NO los traduzcas.
 - attachedEnergy en inglés: fire, water, grass, electric, psychic,
   fighting, darkness, metal, dragon, fairy, normal.
 - status: none, poisoned, paralyzed, asleep, confused.
-- Cartas boca abajo (mano rival, premios): poné la CANTIDAD como número.
-- Si no leés algo, no lo inventes.
+- Cartas boca abajo (mano rival, premios) y mazo restante: poné la CANTIDAD como número.
+- En el descarte solo se ve la carta de arriba; las demás están ocultas.
+- Si una carta (sobre todo de la banca) no se distingue con claridad, dejá
+  ese slot vacío en vez de adivinar. No inventes cartas, HP ni estados.
 ```
 
 ## Protocolo de validación (loop end-to-end)
@@ -124,7 +130,19 @@ Con 3-5 screenshots sacar dos métricas:
 - **% de cartas identificadas** correctamente.
 - **% de atributos** (HP, energía, estado) correctos — acá suele estar el fallo.
 
+## Resultados de la primera prueba (2026-08-26)
+
+Con la captura `docs/captura-1.png`, la IA (sin estas reglas) cometió estos errores:
+
+- **Alucinó cartas en la banca**: inventó "Garbodor" y "Sneasel" (cartas que NO están en el mazo "draga saul"), confundiendo Dudunsparce → Garbodor y Munkidori → Sneasel (con HP y estado "confused" inventados).
+- **No detectó el Dragapult ex de la banca** y puso un Drakloak de más.
+- **Tradujo nombres al español** ("Determinación de Lillie", "Camilla Nocturna") mientras el mazo usa inglés → rompe el matching.
+- **Números imprecisos**: turno (3 vs 1) y deck restante (24 vs 49).
+- **Lo que salió bien**: activo (nombre, HP, energías), mano (4 cartas) y premios (6).
+
+Conclusión: el activo y la mano son confiables; la banca y los números son el punto débil. Las reglas nuevas del prompt (nombres en inglés, no adivinar) apuntan a esos errores.
+
 ## Notas / próximos pasos
 
-- Limitación conocida del importador: `inferKind` solo detecta energías por nombre; el resto cae en `trainer`. La resolución correcta de nombres → carta completa (ataques, imagen, tipo real) contra la Pokémon TCG API / deck preset es una capa posterior.
+- Limitación conocida del importador: `inferKind` detecta energías por nombre (inglés y español); el resto cae en `trainer`. La resolución correcta de nombres → carta completa (ataques, imagen, tipo real) contra la Pokémon TCG API / deck preset es una capa posterior.
 - Camino B (integrar todo en un Cloudflare Worker) es un upgrade natural: primero validar con A, después integrar.
