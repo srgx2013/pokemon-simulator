@@ -71,10 +71,10 @@ export interface ImportPokemonSpec {
 export interface ImportPlayerState {
   active?: ImportPokemonSpec | null;
   bench?: (ImportPokemonSpec | null)[];
-  hand?: (string | ImportCardSpec)[];
+  hand?: (string | ImportCardSpec)[] | number;
   discard?: (string | ImportCardSpec)[];
   prizes?: (string | ImportCardSpec)[] | number;
-  deck?: (string | ImportCardSpec)[];
+  deck?: (string | ImportCardSpec)[] | number;
 }
 
 export interface ImportGameState {
@@ -111,17 +111,36 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
+const ENERGY_NAME_MAP: Record<string, EnergyType> = {
+  fire: 'fire', fuego: 'fire',
+  water: 'water', agua: 'water',
+  grass: 'grass', planta: 'grass',
+  electric: 'electric', lightning: 'electric', rayo: 'electric',
+  psychic: 'psychic', psíquica: 'psychic', psiquica: 'psychic',
+  fighting: 'fighting', lucha: 'fighting',
+  darkness: 'darkness', oscuridad: 'darkness',
+  metal: 'metal',
+  dragon: 'dragon', dragón: 'dragon',
+  fairy: 'fairy', hada: 'fairy',
+  normal: 'normal', incolora: 'normal', incoloro: 'normal',
+};
+
+function inferEnergyType(name: string): EnergyType | null {
+  const lower = name.toLowerCase();
+  for (const [token, type] of Object.entries(ENERGY_NAME_MAP)) {
+    if (lower.includes(token)) return type;
+  }
+  return null;
+}
+
 /**
- * Infiere el `kind` de una carta por pistas en el nombre. Heurística mínima:
- * solo reconoce energías por tipo. Todo lo demás cae en `trainer` por defecto,
- * que es la limitación documentada del primer slice (la resolución correcta
- * contra la API/deck preset es una capa posterior).
+ * Infiere el `kind` de una carta por pistas en el nombre (energías por tipo,
+ * en inglés o español). Todo lo demás cae en `trainer` por defecto, que es la
+ * limitación documentada (la resolución correcta contra la API/deck preset
+ * es una capa posterior).
  */
 function inferKind(name: string): ImportCardKind {
-  const lower = name.toLowerCase();
-  const energyTokens = ['fire', 'water', 'grass', 'lightning', 'electric', 'psychic', 'fighting', 'darkness', 'metal', 'dragon', 'fairy', 'energy'];
-  if (energyTokens.some((t) => lower.includes(t))) return 'energy';
-  return 'trainer';
+  return inferEnergyType(name) !== null ? 'energy' : 'trainer';
 }
 
 function normalizeStatus(status: unknown): StatusCondition {
@@ -186,10 +205,14 @@ function buildZoneCard(spec: ImportCardSpec): PokemonCard | TrainerCard | Energy
   }
 
   if (kind === 'energy') {
+    const energyType =
+      typeof spec.type === 'string'
+        ? (spec.type as EnergyType)
+        : (inferEnergyType(spec.name) ?? 'normal');
     return {
       id: uuidv4(),
       name: spec.name,
-      type: (typeof spec.type === 'string' ? spec.type : 'normal') as EnergyType,
+      type: energyType,
       quantity: typeof spec.quantity === 'number' && spec.quantity > 0 ? spec.quantity : 1,
     };
   }
@@ -229,20 +252,27 @@ function buildPlayerState(input: unknown): PlayerState {
     return arr.map((item) => buildZoneCard(toCardSpec(item)));
   };
 
-  const hand = toCards(src.hand);
-  const discardPile = toCards(src.discard);
-  const deck = toCards(src.deck);
-
-  let prizes: (PokemonCard | TrainerCard | EnergyCard)[];
-  if (typeof src.prizes === 'number') {
-    const count = clamp(Math.floor(src.prizes), 0, 6);
-    prizes = Array.from({ length: count }, () => ({
+  const makePlaceholders = (count: number, label: string): TrainerCard[] =>
+    Array.from({ length: count }, () => ({
       id: uuidv4(),
-      name: 'Prize Card',
+      name: label,
       type: 'item',
       description: '',
       rarity: 'common',
     } as TrainerCard));
+
+  const hand = typeof src.hand === 'number'
+    ? makePlaceholders(clamp(Math.floor(src.hand), 0, 100), 'Hidden Card')
+    : toCards(src.hand);
+  const discardPile = toCards(src.discard);
+  const deck = typeof src.deck === 'number'
+    ? makePlaceholders(clamp(Math.floor(src.deck), 0, 100), 'Unknown Card')
+    : toCards(src.deck);
+
+  let prizes: (PokemonCard | TrainerCard | EnergyCard)[];
+  if (typeof src.prizes === 'number') {
+    const count = clamp(Math.floor(src.prizes), 0, 6);
+    prizes = makePlaceholders(count, 'Prize Card');
   } else {
     prizes = toCards(src.prizes);
   }

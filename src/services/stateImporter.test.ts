@@ -180,4 +180,101 @@ describe('importStateFromJson', () => {
     const r = importStateFromJson(JSON.stringify({ player1: 'soy un string' }));
     expect(r.ok).toBe(false);
   });
+
+  it('importa hand como número generando placeholders', () => {
+    const r = importStateFromJson(JSON.stringify({ player1: { hand: 6 } }));
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.gameState.player1.hand).toHaveLength(6);
+  });
+
+  it('importa deck como número generando placeholders', () => {
+    const r = importStateFromJson(JSON.stringify({ player1: { deck: 41 } }));
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.gameState.player1.deck).toHaveLength(41);
+  });
+
+  it('infiere energía por nombre en español (discard como string)', () => {
+    const r = importStateFromJson(JSON.stringify({ player1: { discard: ['Energía de Fuego'] } }));
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      const card = r.gameState.player1.discardPile[0] as { type: string };
+      expect(card.type).toBe('fire');
+    }
+  });
+
+  it('infiere tipo de energía cuando kind es energy sin type', () => {
+    const r = importStateFromJson(
+      JSON.stringify({ player1: { hand: [{ name: 'Energía de Fuego', kind: 'energy' }] } }),
+    );
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      const card = r.gameState.player1.hand[0] as { type: string };
+      expect(card.type).toBe('fire');
+    }
+  });
+
+  it('importa un escenario real de ejemplo (screenshot de TCG Live)', () => {
+    const json = JSON.stringify({
+      turn: 3,
+      currentPlayer: 'player2',
+      player1: {
+        active: { name: 'Meowscarada ex', hp: 310, currentHp: 210 },
+        bench: [],
+        hand: 6,
+        prizes: 6,
+        discard: [],
+        deck: 41,
+      },
+      player2: {
+        active: { name: 'Dragapult ex', hp: 320, attachedEnergy: ['fire', 'psychic'] },
+        bench: [
+          { name: 'Drakloak', hp: 90 },
+          { name: 'Drakloak', hp: 90 },
+          { name: 'Garbodor', hp: 140 },
+          { name: 'Sneasel', hp: 70, currentHp: 110, status: 'confused' },
+        ],
+        hand: [
+          { name: 'Determinación de Lillie', kind: 'trainer' },
+          { name: 'Camilla Nocturna', kind: 'trainer' },
+          { name: 'Tarjeta Roja Especial', kind: 'trainer' },
+          { name: 'Energía de Fuego', kind: 'energy' },
+        ],
+        prizes: 6,
+        discard: ['Energía de Fuego'],
+        deck: 24,
+      },
+    });
+
+    const r = importStateFromJson(json);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+
+    const gs = r.gameState;
+    expect(gs.currentPlayer).toBe('player2');
+    expect(gs.turn).toBe(3);
+
+    const p1 = gs.player1;
+    expect(p1.active?.card.name).toBe('Meowscarada ex');
+    expect(p1.active?.currentHp).toBe(210);
+    expect(p1.hand).toHaveLength(6);
+    expect(p1.deck).toHaveLength(41);
+    expect(p1.prizes).toHaveLength(6);
+
+    const p2 = gs.player2;
+    expect(p2.active?.card.name).toBe('Dragapult ex');
+    expect(p2.active?.attachedEnergy).toEqual(['fire', 'psychic']);
+    expect(p2.bench).toHaveLength(4);
+    expect(p2.bench[3]?.card.name).toBe('Sneasel');
+    expect(p2.bench[3]?.currentHp).toBe(70);
+    expect(p2.bench[3]?.status).toBe('confused');
+    expect(p2.hand).toHaveLength(4);
+    expect(p2.deck).toHaveLength(24);
+    expect(p2.prizes).toHaveLength(6);
+
+    const discardCard = p2.discardPile[0] as { type: string };
+    expect(discardCard.type).toBe('fire');
+
+    const handEnergy = p2.hand[3] as { type: string };
+    expect(handEnergy.type).toBe('fire');
+  });
 });
