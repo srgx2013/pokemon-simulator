@@ -426,6 +426,7 @@ export function DeckSelector() {
   const customDecks = useGameStore(state => state.customDecks);
   const loadCustomDecks = useGameStore(state => state.loadCustomDecks);
   const addCustomDeck = useGameStore(state => state.addCustomDeck);
+  const removeCustomDeck = useGameStore(state => state.removeCustomDeck);
   const player1Deck = useGameStore(state => state.player1Deck);
   const player2Deck = useGameStore(state => state.player2Deck);
   const setPlayer1Deck = useGameStore(state => state.setPlayer1Deck);
@@ -453,6 +454,13 @@ export function DeckSelector() {
     } catch { setImportProgress(null); alert('Error al importar.'); }
   };
 
+  const handleDeleteDeck = (id?: string) => {
+    if (!id) return;
+    if (window.confirm('¿Eliminar este mazo guardado?')) {
+      removeCustomDeck(id);
+    }
+  };
+
   return (
     <div className="deck-selector">
       <button className="select-deck-btn" onClick={handleOpenDeckModal}>🎴 Nueva Partida</button>
@@ -474,13 +482,31 @@ export function DeckSelector() {
             <div className="deck-player-section">
               <h4>🎯 Mazo P1</h4>
               {player1Deck ? (<div className="selected-deck"><span>{player1Deck.name}</span><button onClick={() => setPlayer1Deck(null)}>Cambiar</button></div>) : (
-                <><p className="no-deck-message">No hay mazo</p><div className="deck-list">{customDecks.map(d => <button key={d.id} className="deck-option" onClick={() => setPlayer1Deck(d)}>{d.name}</button>)}</div></>
+                <><p className="no-deck-message">No hay mazo</p>
+                  <div className="deck-list">
+                    {customDecks.map(d => (
+                      <div key={d.id} className="deck-option-row">
+                        <button className="deck-option" onClick={() => setPlayer1Deck(d)}>{d.name}</button>
+                        <button className="deck-delete-btn" onClick={() => handleDeleteDeck(d.id)} title="Eliminar mazo">✕</button>
+                      </div>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
             <div className="deck-player-section">
               <h4>⚔️ Mazo P2</h4>
               {player2Deck ? (<div className="selected-deck"><span>{player2Deck.name}</span><button onClick={() => setPlayer2Deck(null)}>Cambiar</button></div>) : (
-                <><p className="no-deck-message">No hay mazo</p><div className="deck-list">{customDecks.map(d => <button key={d.id} className="deck-option" onClick={() => setPlayer2Deck(d)}>{d.name}</button>)}</div></>
+                <><p className="no-deck-message">No hay mazo</p>
+                  <div className="deck-list">
+                    {customDecks.map(d => (
+                      <div key={d.id} className="deck-option-row">
+                        <button className="deck-option" onClick={() => setPlayer2Deck(d)}>{d.name}</button>
+                        <button className="deck-delete-btn" onClick={() => handleDeleteDeck(d.id)} title="Eliminar mazo">✕</button>
+                      </div>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
           </div>

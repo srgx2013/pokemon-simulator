@@ -423,6 +423,16 @@ body {
 .deck-list { display: flex; flex-direction: column; gap: 0.35rem; max-height: 200px; overflow-y: auto; }
 .deck-option { display: block; width: 100%; text-align: left; padding: 0.5rem 0.75rem; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); cursor: pointer; font-size: 0.8rem; }
 .deck-option:hover { border-color: var(--accent); background: rgba(233, 69, 96, 0.1); }
+
+.deck-option-row { display: flex; align-items: center; gap: 0.25rem; }
+.deck-option-row .deck-option { flex: 1; }
+.deck-delete-btn {
+  width: 26px; height: 26px; flex-shrink: 0; border-radius: 6px;
+  background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger);
+  color: #fca5a5; cursor: pointer; font-size: 0.7rem; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+}
+.deck-delete-btn:hover { background: var(--danger); color: white; }
 .no-deck-message { font-size: 0.75rem; color: var(--text-secondary); padding: 0.5rem 0; }
 
 .start-game-btn { width: 100%; padding: 0.9rem; background: var(--accent); border: none; border-radius: 8px; color: white; font-size: 1rem; font-weight: bold; cursor: pointer; margin-top: 1rem; }
@@ -599,3 +609,22 @@ body {
   .export-drawer { width: 100%; }
   .picker-dropdown { width: 200px; }
 }
+
+/* ═══ IMPORT MODAL ═══ */
+
+.import-json-textarea {
+  width: 100%; padding: 0.6rem; background: var(--primary);
+  border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; resize: vertical;
+  min-height: 180px; margin-bottom: 0.5rem;
+}
+
+.import-json-textarea:focus { outline: none; border-color: var(--accent); }
+
+.import-error {
+  margin-bottom: 0.5rem; padding: 0.5rem 0.75rem; background: rgba(239, 68, 68, 0.15);
+  border: 1px solid var(--danger); border-radius: 6px; color: #fca5a5;
+  font-size: 0.75rem; white-space: pre-wrap; word-break: break-word;
+}
+
+.import-hint { font-size: 0.75rem; color: var(--text-secondary); line-height: 1.4; margin: 0 0 0.75rem; }

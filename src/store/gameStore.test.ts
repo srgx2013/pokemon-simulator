@@ -509,3 +509,31 @@ describe('auto-save', () => {
     expect(saved.currentPlayer).toBe('player1');
   });
 });
+
+describe('resetGame', () => {
+  it('resetea el gameState a inicial y limpia los mazos seleccionados', () => {
+    useGameStore.getState().setPlayer1Deck(fullDeck);
+    useGameStore.getState().setPlayer2Deck(fullDeck);
+    useGameStore.getState().startGame();
+
+    useGameStore.getState().resetGame();
+
+    const state = useGameStore.getState();
+    expect(state.gameState.player1.deck).toHaveLength(0);
+    expect(state.gameState.player1.active).toBeNull();
+    expect(state.gameState.currentPlayer).toBe('player1');
+    expect(state.player1Deck).toBeNull();
+    expect(state.player2Deck).toBeNull();
+  });
+
+  it('persiste el estado vacío al autosave (no restaura el escenario viejo)', () => {
+    useGameStore.getState().setPlayer1Deck(fullDeck);
+    useGameStore.getState().setPlayer2Deck(fullDeck);
+    useGameStore.getState().startGame();
+
+    useGameStore.getState().resetGame();
+
+    const saved = JSON.parse(store['pokemon-autosave']);
+    expect(saved.player1.deck).toHaveLength(0);
+  });
+});

@@ -50,6 +50,8 @@ interface GameStore {
   saveScenario: (name: string) => void;
   loadScenario: (id: string) => void;
   deleteScenario: (id: string) => void;
+  importGameState: (gameState: GameState) => void;
+  resetGame: () => void;
   getStateForAI: () => string;
 }
 
@@ -544,6 +546,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
       selectedScenario: null,
     }));
     localStorage.setItem('pokemon-scenarios', JSON.stringify(get().scenarios));
+  },
+
+  importGameState: (gameState) => {
+    set({ gameState });
+  },
+
+  resetGame: () => {
+    set({
+      gameState: createInitialGameState(),
+      selectedScenario: null,
+      player1Deck: null,
+      player2Deck: null,
+    });
   },
 
   getStateForAI: () => {
