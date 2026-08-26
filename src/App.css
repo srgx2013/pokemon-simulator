@@ -628,3 +628,9 @@ body {
 }
 
 .import-hint { font-size: 0.75rem; color: var(--text-secondary); line-height: 1.4; margin: 0 0 0.75rem; }
+
+.import-prompt-section {
+  padding: 0.75rem; background: rgba(0,0,0,0.2);
+  border: 1px solid var(--border); border-radius: 8px; margin-bottom: 0.75rem;
+}
+.import-prompt-section .import-btn { margin: 0.35rem 0 0.5rem; }

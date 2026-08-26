@@ -4,6 +4,7 @@ import { BattleField, DeckSelector } from './components/BattleField';
 import { ExportPanel } from './components/ExportPanel';
 import { ScenarioEditor } from './components/ScenarioEditor';
 import { importStateFromJson } from './services/stateImporter';
+import { generateImportPrompt } from './services/promptGenerator';
 
 function App() {
   const gameState = useGameStore(state => state.gameState);
@@ -11,6 +12,8 @@ function App() {
   const loadScenario = useGameStore(state => state.loadScenario);
   const importGameState = useGameStore(state => state.importGameState);
   const resetGame = useGameStore(state => state.resetGame);
+  const swapPlayers = useGameStore(state => state.swapPlayers);
+  const player1Deck = useGameStore(state => state.player1Deck);
   const scenarios = useGameStore(state => state.scenarios);
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
@@ -18,6 +21,7 @@ function App() {
   const [showImport, setShowImport] = useState(false);
   const [importText, setImportText] = useState('');
   const [importError, setImportError] = useState<string | null>(null);
+  const [promptCopied, setPromptCopied] = useState(false);
 
   const handleSave = () => {
     const name = prompt('Nombre del escenario:');
@@ -45,6 +49,22 @@ function App() {
     }
   };
 
+  const handleCopyPrompt = async () => {
+    const prompt = generateImportPrompt(player1Deck);
+    try {
+      await navigator.clipboard.writeText(prompt);
+    } catch {
+      const textarea = document.createElement('textarea');
+      textarea.value = prompt;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+    }
+    setPromptCopied(true);
+    setTimeout(() => setPromptCopied(false), 2500);
+  };
+
   return (
     <div className="app">
       <header className="header">
@@ -67,6 +87,7 @@ function App() {
               </button>
               <button onClick={handleSave} className="save-btn">💾 Guardar</button>
               <button onClick={() => setShowLoadModal(true)} className="load-btn">📂 Cargar</button>
+              <button onClick={swapPlayers} className="load-btn" title="Intercambiar lados (TÚ ⇄ RIVAL)">⇅</button>
               <button onClick={handleExit} className="load-btn">🚪 Salir</button>
             </>
           )}
@@ -134,7 +155,13 @@ function App() {
         <div className="modal-overlay" onClick={() => setShowImport(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <h3>📥 Importar Escenario</h3>
-            <p className="import-hint">Pegá el JSON del estado (devuelto por tu IA) para cargar el tablero.</p>
+            <div className="import-prompt-section">
+              <p className="import-hint"><strong>Paso 1:</strong> copiá el prompt para tu IA (incluye la lista de tu mazo).</p>
+              <button className="import-btn" onClick={handleCopyPrompt}>
+                {promptCopied ? '✅ ¡Prompt copiado!' : '📋 Copiar prompt para tu IA'}
+              </button>
+              <p className="import-hint"><strong>Paso 2:</strong> pegá acá el JSON que te devuelva y cargalo.</p>
+            </div>
             <textarea
               className="import-json-textarea"
               value={importText}
