@@ -52,6 +52,7 @@ interface GameStore {
   deleteScenario: (id: string) => void;
   importGameState: (gameState: GameState) => void;
   resetGame: () => void;
+  swapPlayers: () => void;
   getStateForAI: () => string;
 }
 
@@ -559,6 +560,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
       player1Deck: null,
       player2Deck: null,
     });
+  },
+
+  swapPlayers: () => {
+    set(state => ({
+      gameState: {
+        ...state.gameState,
+        player1: state.gameState.player2,
+        player2: state.gameState.player1,
+        currentPlayer: state.gameState.currentPlayer === 'player1' ? 'player2' : 'player1',
+      },
+    }));
   },
 
   getStateForAI: () => {

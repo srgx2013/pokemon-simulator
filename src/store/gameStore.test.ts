@@ -510,6 +510,31 @@ describe('auto-save', () => {
   });
 });
 
+describe('swapPlayers', () => {
+  it('intercambia player1 y player2 junto con currentPlayer', () => {
+    useGameStore.getState().setPlayer1Deck(fullDeck);
+    useGameStore.getState().setPlayer2Deck(fullDeck);
+    useGameStore.getState().startGame();
+
+    const card = { name: 'P1Mon', stage: 'basic' as const, hp: 100, type: 'psychic', attacks: [], retreatCost: 1, rarity: 'common' as const };
+    useGameStore.getState().setActivePokemon('player1', { id: 'p1', card, currentHp: 100, attachedEnergy: [], status: 'none' as const, damage: 0, isActive: true });
+
+    useGameStore.getState().swapPlayers();
+
+    const gs = useGameStore.getState().gameState;
+    expect(gs.player2.active?.id).toBe('p1');
+    expect(gs.player1.active).toBeNull();
+    expect(gs.currentPlayer).toBe('player2');
+  });
+
+  it('swap es su propia inversa (dos swaps vuelven al estado original)', () => {
+    useGameStore.getState().swapPlayers();
+    useGameStore.getState().swapPlayers();
+
+    expect(useGameStore.getState().gameState.currentPlayer).toBe('player1');
+  });
+});
+
 describe('resetGame', () => {
   it('resetea el gameState a inicial y limpia los mazos seleccionados', () => {
     useGameStore.getState().setPlayer1Deck(fullDeck);
