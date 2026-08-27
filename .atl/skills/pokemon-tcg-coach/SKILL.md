@@ -25,7 +25,9 @@ Use this skill when analyzing a Pokémon TCG game state (e.g., the markdown expo
 - Play the least-committal cards first; keep options open.
 - Search effects reveal information — use them only after you know what you need.
 - Attach Energy and evolve AFTER resolving draw/search, unless the draw depends on the board state.
+- Use setup abilities (damage-moving, energy acceleration) BEFORE attacking so the attack lands the KO. The order of plays determines whether the KO happens.
 - Preserve resources: don't discard a card you might need later unless the search target is worth it.
+- When choosing between two similar cards (e.g., two Supporters), JUSTIFY the choice explicitly: state why card A before card B given the board state, resources, and prize map.
 
 ### Win Conditions & Matchups
 - Know your deck's win condition (e.g., Dragapult ex wins by spamming Phantom Dive: 200 damage + 6 bench damage counters).
@@ -39,7 +41,7 @@ Use this skill when analyzing a Pokémon TCG game state (e.g., the markdown expo
 
 For the state provided, produce a structured answer:
 
-1. **Scoreline** — prize counts and who is ahead.
+1. **Turn & scoreline** — whose turn it is (yours → you can act this turn; opponent's → you are evaluating their threat), plus prize counts and who is ahead.
 2. **Immediate threats** — what the opponent can do next turn.
 3. **Your resources** — hand, bench, energies, and available evolutions.
 4. **Prize map** — the explicit sequence of KOs to reach 6 prizes (name each target and its prize value).
@@ -48,11 +50,15 @@ For the state provided, produce a structured answer:
 
 ## Heuristics
 
+- **Evolution rule**: a Pokémon evolves at most once per turn, and a Pokémon played or evolved THIS turn cannot evolve again (unless a card like Rare Candy allows it). Respect the `evolvedThisTurn` flag.
+- **Turn-action limits**: one Supporter per turn, one manual Energy attach per turn, one retreat per turn, one attack per turn. Never recommend an action already spent this turn.
 - Attack with the cheapest viable attacker; don't overcommit energy to a Pokémon that will be KOd.
 - Keep a 1-prize attacker as a "sacrifice" to avoid giving up 2 prizes on a bad turn.
 - If your Active can be KOd next turn and you can't prevent it, retreat it or bench a safer target.
 - Spread damage (e.g., Phantom Dive's bench counters) to set up multi-KOs on low-HP bench Pokémon.
 - Don't bench a second Pokémon ex/V when the opponent's win path is already "two 2-prize KOs".
+- **Deny the evolution**: prioritize KOing the opponent's Pokémon that are one step from evolving into a threat (especially ex / Stage 2). A 90 HP Drakloak is far easier to KO now than the 320 HP Dragapult ex it becomes next turn.
+- **Set up exact KOs**: combine damage sources (e.g., a damage-moving ability like Munkidori's Adrena-Brain + an attack) to land an exact KO that a single attack alone can't reach. Do the math: 20 (ability) + 70 (attack) = 90 = KO.
 
 ## Standard Format Awareness
 
