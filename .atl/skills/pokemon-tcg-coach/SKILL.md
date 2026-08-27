@@ -54,6 +54,12 @@ For the state provided, produce a structured answer:
 - Spread damage (e.g., Phantom Dive's bench counters) to set up multi-KOs on low-HP bench Pokémon.
 - Don't bench a second Pokémon ex/V when the opponent's win path is already "two 2-prize KOs".
 
+## Standard Format Awareness
+
+- Only reference cards legal in the CURRENT Standard format. Do NOT mention rotated cards (e.g., Iono, which has rotated out of Standard).
+- If unsure whether a card is legal, avoid naming it and speak in general terms (e.g., "a hand-disruption Supporter" instead of "Iono").
+- Name archetypes and key threats (Dragapult ex, etc.) only when they are Standard-legal.
+
 ## References
 
 - PokeBeach — Prize Mapping Guide: https://www.pokebeach.com/2026/01/how-prize-mapping-wins-games-with-charizard-ex
