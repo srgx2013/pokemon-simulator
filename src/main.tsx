@@ -3,8 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import './App.css'
 import App from './App.tsx'
-import { useGameStore } from './store/gameStore'
-import type { GameState } from './types'
+import { useGameStore, hasActiveGame } from './store/gameStore'
 
 // Migración: si los datos guardados son del formato anterior (sin nombre en energías),
 // los limpiamos para forzar re-importación con el nuevo formato.
@@ -16,23 +15,8 @@ if (savedVersion !== DATA_VERSION) {
       localStorage.setItem('pokemon-data-version', DATA_VERSION);
 }
 
-// A game is "in progress" when any meaningful state exists: cards in hand,
-// active Pokémon, prizes, a non-empty deck, or having left the setup phase.
-// deck.length alone is not a reliable signal — a deck can legitimately reach
-// zero mid-game while the game continues.
-const hasActiveGame = (state: GameState): boolean => {
-  return (
-    state.phase !== 'setup' ||
-    state.player1.hand.length > 0 ||
-    state.player2.hand.length > 0 ||
-    state.player1.active !== null ||
-    state.player2.active !== null ||
-    state.player1.prizes.length > 0 ||
-    state.player2.prizes.length > 0 ||
-    state.player1.deck.length > 0 ||
-    state.player2.deck.length > 0
-  );
-};
+// A game is "in progress" when any meaningful state exists (see hasActiveGame
+// in gameStore). It is used below to warn before reloads while a game is live.
 
 // Warning before a Vite dev-server full reload while a game is in progress.
 // The confirm is informational: the installed Vite client (verified against

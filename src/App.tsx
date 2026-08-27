@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useGameStore } from './store/gameStore';
+import { useGameStore, hasActiveGame } from './store/gameStore';
 import { BattleField, DeckSelector } from './components/BattleField';
 import { ExportPanel } from './components/ExportPanel';
 import { ScenarioEditor } from './components/ScenarioEditor';
@@ -14,6 +14,7 @@ function App() {
   const resetGame = useGameStore(state => state.resetGame);
   const swapPlayers = useGameStore(state => state.swapPlayers);
   const player1Deck = useGameStore(state => state.player1Deck);
+  const player2Deck = useGameStore(state => state.player2Deck);
   const scenarios = useGameStore(state => state.scenarios);
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
@@ -32,7 +33,7 @@ function App() {
   };
 
   const handleImport = () => {
-    const result = importStateFromJson(importText);
+    const result = importStateFromJson(importText, { player1: player1Deck, player2: player2Deck });
     if (result.ok) {
       importGameState(result.gameState);
       setImportText('');
@@ -77,7 +78,7 @@ function App() {
           <button className="load-btn" onClick={() => { setImportError(null); setShowImport(true); }}>
             📥 Importar
           </button>
-          {gameState.player1.deck.length > 0 && (
+          {hasActiveGame(gameState) && (
             <>
               <button 
                 className={`editor-btn ${showEditor ? 'active' : ''}`}
@@ -94,7 +95,7 @@ function App() {
         </div>
       </header>
 
-      {gameState.player1.deck.length === 0 ? (
+      {!hasActiveGame(gameState) ? (
         <div className="empty-state">
           <div className="empty-state-content">
             <h2>Bienvenido al Board Editor</h2>
@@ -109,7 +110,7 @@ function App() {
       )}
 
       {/* Export Floating Button */}
-      {gameState.player1.deck.length > 0 && !showAI && (
+      {hasActiveGame(gameState) && !showAI && (
         <button className="export-fab" onClick={() => setShowAI(true)} title="Exportar Estado">
           📋
         </button>
