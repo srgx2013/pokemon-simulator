@@ -60,6 +60,14 @@ export interface PokemonInstance {
   damage: number;
   isActive: boolean;
   benchPosition?: number;
+  evolvedThisTurn?: boolean;
+}
+
+export interface TurnActions {
+  supporterUsed: boolean;
+  energyAttached: boolean;
+  retreated: boolean;
+  attacked: boolean;
 }
 
 export interface PlayerState {
@@ -69,6 +77,8 @@ export interface PlayerState {
   prizes: (PokemonCard | TrainerCard | EnergyCard)[];
   active: PokemonInstance | null;
   bench: (PokemonInstance | null)[];
+  turnActions?: TurnActions;
+  turnLog?: string[];
 }
 
 export interface GameState {

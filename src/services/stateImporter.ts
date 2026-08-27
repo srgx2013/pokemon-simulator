@@ -67,6 +67,7 @@ export interface ImportPokemonSpec {
   retreatCost?: number;
   attacks?: Attack[];
   abilities?: Ability[];
+  evolvedThisTurn?: boolean;
 }
 
 export interface ImportPlayerState {
@@ -76,6 +77,13 @@ export interface ImportPlayerState {
   discard?: (string | ImportCardSpec)[];
   prizes?: (string | ImportCardSpec)[] | number;
   deck?: (string | ImportCardSpec)[] | number;
+  turnActions?: {
+    supporterUsed?: boolean;
+    energyAttached?: boolean;
+    retreated?: boolean;
+    attacked?: boolean;
+  };
+  turnLog?: string[];
 }
 
 export interface ImportGameState {
@@ -214,6 +222,7 @@ function buildPokemonInstance(
     status: normalizeStatus(spec.status),
     damage: typeof spec.damage === 'number' ? spec.damage : 0,
     isActive,
+    evolvedThisTurn: spec.evolvedThisTurn === true,
   };
 }
 
@@ -317,7 +326,18 @@ function buildPlayerState(input: unknown, deckPreset: DeckPreset | null): Player
     prizes = toCards(src.prizes);
   }
 
-  return { deck, hand, discardPile, prizes, active, bench };
+  const turnActions = src.turnActions ? {
+    supporterUsed: src.turnActions.supporterUsed === true,
+    energyAttached: src.turnActions.energyAttached === true,
+    retreated: src.turnActions.retreated === true,
+    attacked: src.turnActions.attacked === true,
+  } : undefined;
+
+  const turnLog = Array.isArray(src.turnLog)
+    ? src.turnLog.filter((x): x is string => typeof x === 'string')
+    : undefined;
+
+  return { deck, hand, discardPile, prizes, active, bench, turnActions, turnLog };
 }
 
 // ─── Función principal ─────────────────────────────────────────────────────────

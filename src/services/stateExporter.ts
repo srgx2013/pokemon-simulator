@@ -108,6 +108,7 @@ function fmtAttackCost(cost: EnergyType[] | undefined): string {
 interface EvolutionOption {
   from: string;        // nombre del Pokémon en campo
   fromLocation: 'active' | 'bench';
+  fromIndex?: number;  // índice 0-based del bench (undefined para active)
   to: string;          // nombre de la evolución en mano
   toStage: string;
 }
@@ -121,11 +122,12 @@ export function findEvolutions(
   active: PokemonInstance | null,
   bench: (PokemonInstance | null)[],
 ): EvolutionOption[] {
-  const field: { name: string; location: 'active' | 'bench' }[] = [];
+  const field: { name: string; location: 'active' | 'bench'; index: number }[] = [];
 
-  if (active) field.push({ name: active.card.name, location: 'active' });
-  for (const p of bench) {
-    if (p) field.push({ name: p.card.name, location: 'bench' });
+  if (active && !active.evolvedThisTurn) field.push({ name: active.card.name, location: 'active', index: -1 });
+  for (let i = 0; i < bench.length; i++) {
+    const p = bench[i];
+    if (p && !p.evolvedThisTurn) field.push({ name: p.card.name, location: 'bench', index: i });
   }
 
   const evolutions: EvolutionOption[] = [];
@@ -140,6 +142,7 @@ export function findEvolutions(
       evolutions.push({
         from: match.name,
         fromLocation: match.location,
+        fromIndex: match.index,
         to: pokemon.name,
         toStage: STAGE_NAMES[pokemon.stage] ?? pokemon.stage,
       });
@@ -224,6 +227,9 @@ function renderPokemonSection(
   const f = formatPokemon(pokemon, hand);
   const lines: string[] = [];
   lines.push(`${indent}**${title}:** ${f.name} (${f.hp} HP) · ${f.type} · ${f.stage}`);
+  if (pokemon.evolvedThisTurn) {
+    lines.push(`${indent}- ⚠️ Ya evolucionó este turno (no puede volver a evolucionar)`);
+  }
   lines.push(`${indent}- Energía: ${f.energy} · Estado: ${f.status}`);
   lines.push(`${indent}- Debilidad: ${f.weakness} · Resistencia: ${f.resistance}`);
   lines.push(`${indent}- Retreat: ${f.retreatCost} energía ${f.retreatReady ? '✅' : '❌'}`);
@@ -266,6 +272,9 @@ function renderBenchSection(
   const lines = occupied.map((p, i) => {
     const f = formatPokemon(p, hand);
     let block = `  **#${i + 1}:** ${f.name} (${f.hp} HP) · ${f.type} · ${f.stage}\n`;
+    if (p.evolvedThisTurn) {
+      block += `    ⚠️ Ya evolucionó este turno (no puede volver a evolucionar)\n`;
+    }
     block += `    Energía: ${f.energy} · Estado: ${f.status}\n`;
     block += `    Debilidad: ${f.weakness} · Resistencia: ${f.resistance}\n`;
     block += `    Retreat: ${f.retreatCost} energía ${f.retreatReady ? '✅' : '❌'}\n`;
@@ -453,6 +462,7 @@ Reglas de análisis:
 6. Explicá tu razonamiento paso a paso, no des solo la respuesta final
 
 Estructura de tu análisis:
+- Turno activo: de quién es el turno (Tú → podés actuar; Rival → evaluá su amenaza).
 - Marcador: quién va arriba en premios.
 - Amenazas inmediatas: qué puede hacer el rival el próximo turno.
 - Mapa de premios: la secuencia concreta de KOs para llegar a 6 premios (nombrá cada objetivo y su valor en premios).
@@ -472,6 +482,8 @@ export function exportStateToMarkdown(
 
   const side: SideLabel = currentPlayer === 'player1' ? 'Tú' : 'Rival';
   const isPlayer1Turn = currentPlayer === 'player1';
+  const turnOwner = isPlayer1Turn ? player1 : player2;
+  const turnActions = turnOwner.turnActions;
 
   // Prize differential
   const prizeDiff = player1.prizes.length - player2.prizes.length;
@@ -493,6 +505,10 @@ export function exportStateToMarkdown(
   blocks.push(`|---|---|`);
   blocks.push(`| Turno | ${turn} |`);
   blocks.push(`| Turno de | ${side} |`);
+  if (turnActions) {
+    const fmt = (v: boolean, label: string) => (v ? `${label} ✓` : `${label} ✗`);
+    blocks.push(`| Acciones este turno | ${fmt(turnActions.supporterUsed, 'Supporter')} · ${fmt(turnActions.energyAttached, 'Energía')} · ${fmt(turnActions.retreated, 'Retreat')} · ${fmt(turnActions.attacked, 'Ataque')} |`);
+  }
   blocks.push(`| Tus Prizes restantes | ${player1.prizes.length}/6 |`);
   blocks.push(`| Prizes del rival | ${player2.prizes.length}/6 |`);
   blocks.push(
@@ -516,6 +532,14 @@ export function exportStateToMarkdown(
   blocks.push('');
   blocks.push(`## ${isPlayer1Turn ? '▶️ Tú' : '👤 Tú'} (Jugador 1)`);
   blocks.push('');
+
+  if (player1.turnLog && player1.turnLog.length > 0) {
+    blocks.push('**Jugadas de este turno:**');
+    for (const action of player1.turnLog) {
+      blocks.push(`  - ${action}`);
+    }
+    blocks.push('');
+  }
 
   blocks.push(renderPokemonSection('Activo', player1.active, player1.hand, ''));
   blocks.push(renderBenchSection(player1.bench, player1.hand));
@@ -550,6 +574,13 @@ export function exportStateToMarkdown(
   blocks.push('');
   blocks.push(`## ${isPlayer1Turn ? '👤 Rival' : '▶️ Rival'} (Jugador 2)`);
   blocks.push('');
+  if (player2.turnLog && player2.turnLog.length > 0) {
+    blocks.push('**Jugadas de este turno:**');
+    for (const action of player2.turnLog) {
+      blocks.push(`  - ${action}`);
+    }
+    blocks.push('');
+  }
   blocks.push(renderPokemonSection('Activo', player2.active, player2.hand, ''));
   blocks.push(renderBenchSection(player2.bench, player2.hand));
   blocks.push(renderCardList(player2.hand, 'Mano (visible por ser simulador)'));
@@ -607,7 +638,7 @@ export function exportStateToMarkdown(
     blocks.push('### Evoluciones posibles');
     blocks.push('');
     for (const ev of allEvolutions) {
-      const loc = ev.fromLocation === 'active' ? 'Activo' : `Bench #${ev.fromLocation === 'bench' ? '?' : ''}`;
+      const loc = ev.fromLocation === 'active' ? 'Activo' : `Bench #${(ev.fromIndex ?? 0) + 1}`;
       blocks.push(`- **${ev.from}** (${loc}) → **${ev.to}** (${ev.toStage})`);
     }
     blocks.push('');

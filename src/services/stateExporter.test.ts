@@ -154,4 +154,37 @@ describe('exportStateToMarkdown', () => {
 
     expect(md).toContain('Vas 1 arriba');
   });
+
+  it('marca los Pokémon que ya evolucionaron este turno', () => {
+    const gameState = makeGameState();
+    gameState.player1.active = { ...activeInstance, card: { ...activeInstance.card, name: 'Drakloak' }, evolvedThisTurn: true };
+    gameState.player1.hand = [{
+      name: 'Dragapult ex', stage: 'stage2' as const, hp: 320, type: 'dragon',
+      evolvesFrom: 'Drakloak', attacks: [], retreatCost: 1, rarity: 'ultra' as const,
+    }];
+
+    const md = exportStateToMarkdown(gameState, null, null);
+
+    expect(md).toContain('Ya evolucionó este turno');
+  });
+
+  it('muestra las acciones ya realizadas este turno', () => {
+    const gameState = makeGameState();
+    gameState.player1.turnActions = { supporterUsed: true, energyAttached: false, retreated: false, attacked: false };
+
+    const md = exportStateToMarkdown(gameState, null, null);
+
+    expect(md).toContain('Acciones este turno');
+    expect(md).toContain('Supporter ✓');
+  });
+
+  it('muestra las jugadas concretas de este turno', () => {
+    const gameState = makeGameState();
+    gameState.player1.turnLog = ["Jugó Lillie's Determination", 'Evolucionó Dreepy a Drakloak'];
+
+    const md = exportStateToMarkdown(gameState, null, null);
+
+    expect(md).toContain('Jugadas de este turno');
+    expect(md).toContain("Jugó Lillie's Determination");
+  });
 });
