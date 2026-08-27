@@ -62,7 +62,7 @@ export function canPayCost(
   cost: EnergyType[],
   attachedEnergy: string[],
 ): boolean {
-  if (!cost || cost.length === 0) return false;
+  if (!cost || cost.length === 0) return true;
 
   const pool = [...attachedEnergy];
 
@@ -490,10 +490,10 @@ export function exportStateToMarkdown(
   blocks.push(`| Prizes del rival | ${player2.prizes.length}/6 |`);
   blocks.push(
     `| Diferencia | ${
-      prizeDiff < 0
-        ? `Vas ${Math.abs(prizeDiff)} atrás 👇`
-        : prizeDiff > 0
-          ? `Vas ${prizeDiff} arriba 👆`
+      prizeDiff > 0
+        ? `Vas ${prizeDiff} atrás 👇`
+        : prizeDiff < 0
+          ? `Vas ${Math.abs(prizeDiff)} arriba 👆`
           : 'Empardados ➡️'
     } |`,
   );

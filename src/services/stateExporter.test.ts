@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { exportStateToMarkdown } from './stateExporter';
+import { exportStateToMarkdown, canPayCost } from './stateExporter';
 import type { GameState, DeckPreset, PokemonInstance, PokemonCard } from '../types';
 
 const baseCard: Omit<PokemonCard, 'id'> = {
@@ -138,5 +138,20 @@ describe('exportStateToMarkdown', () => {
 
     expect(md).toContain('Hidden Card ×14');
     expect(md.match(/Hidden Card/g)?.length).toBeLessThan(5);
+  });
+
+  it('considera usable un ataque sin costo de energía', () => {
+    expect(canPayCost([], [])).toBe(true);
+  });
+
+  it('muestra "arriba" cuando tenés menos premios restantes', () => {
+    const gameState = makeGameState();
+    const prize = { id: 'p', name: 'Prize Card', type: 'item' as const, description: '', rarity: 'common' as const };
+    gameState.player1.prizes = Array.from({ length: 5 }, () => ({ ...prize, id: 'p1' }));
+    gameState.player2.prizes = Array.from({ length: 6 }, () => ({ ...prize, id: 'p2' }));
+
+    const md = exportStateToMarkdown(gameState, null, null);
+
+    expect(md).toContain('Vas 1 arriba');
   });
 });
