@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { importStateFromJson } from './stateImporter';
+import type { DeckPreset } from '../types';
 
 describe('importStateFromJson', () => {
   it('rechaza JSON inválido con un error claro', () => {
@@ -276,5 +277,52 @@ describe('importStateFromJson', () => {
 
     const handEnergy = p2.hand[3] as { type: string };
     expect(handEnergy.type).toBe('fire');
+  });
+
+  it('resuelve type/stage/hp/retreatCost contra el deck preset', () => {
+    const deck: DeckPreset = {
+      name: 'test', description: '',
+      pokemon: [
+        { name: 'Chandelure', stage: 'stage2', hp: 130, type: 'fire', attacks: [], retreatCost: 2, rarity: 'rare' },
+      ],
+      trainers: [],
+      energies: [],
+    };
+    const r = importStateFromJson(
+      JSON.stringify({ player1: { active: { name: 'Chandelure' } } }),
+      { player1: deck },
+    );
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      const active = r.gameState.player1.active!;
+      expect(active.card.stage).toBe('stage2');
+      expect(active.card.type).toBe('fire');
+      expect(active.card.hp).toBe(130);
+      expect(active.card.retreatCost).toBe(2);
+    }
+  });
+
+  it('clasifica cartas de zona contra el deck preset (Pokémon vs trainer)', () => {
+    const deck: DeckPreset = {
+      name: 'test', description: '',
+      pokemon: [
+        { name: 'Chandelure', stage: 'stage2', hp: 130, type: 'fire', attacks: [], retreatCost: 2, rarity: 'rare' },
+      ],
+      trainers: [
+        { name: 'Rare Candy', type: 'item', description: '', rarity: 'uncommon' },
+      ],
+      energies: [{ type: 'fire', quantity: 4 }],
+    };
+    const r = importStateFromJson(
+      JSON.stringify({ player1: { discard: ['Chandelure', 'Rare Candy', 'Fire Energy'] } }),
+      { player1: deck },
+    );
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      const d = r.gameState.player1.discardPile;
+      expect((d[0] as { stage: string }).stage).toBe('stage2');
+      expect((d[1] as { type: string }).type).toBe('item');
+      expect((d[2] as { type: string }).type).toBe('fire');
+    }
   });
 });

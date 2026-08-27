@@ -39,6 +39,7 @@ import type {
   EnergyType,
   Attack,
   Ability,
+  DeckPreset,
 } from '../types';
 
 // ─── Tipos del formato de importación ──────────────────────────────────────────
@@ -82,6 +83,11 @@ export interface ImportGameState {
   currentPlayer?: 'player1' | 'player2';
   player1?: ImportPlayerState;
   player2?: ImportPlayerState;
+}
+
+export interface ImportDecks {
+  player1?: DeckPreset | null;
+  player2?: DeckPreset | null;
 }
 
 export type ImportResult =
@@ -155,6 +161,26 @@ function normalizeStage(stage: unknown): PokemonStage {
     : 'basic';
 }
 
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function buildCardLookup(deck: DeckPreset | null): Map<string, PokemonCard | TrainerCard | EnergyCard> {
+  const map = new Map<string, PokemonCard | TrainerCard | EnergyCard>();
+  if (!deck) return map;
+  for (const p of deck.pokemon) {
+    if (!map.has(p.name)) map.set(p.name, { ...p, id: uuidv4() });
+  }
+  for (const t of deck.trainers) {
+    if (!map.has(t.name)) map.set(t.name, { ...t, id: uuidv4() });
+  }
+  for (const e of deck.energies) {
+    const name = e.name || `${capitalize(e.type)} Energy`;
+    if (!map.has(name)) map.set(name, { id: uuidv4(), name, type: e.type, quantity: e.quantity });
+  }
+  return map;
+}
+
 // ─── Construcción de cartas ────────────────────────────────────────────────────
 
 function buildPokemonCard(spec: ImportPokemonSpec): PokemonCard {
@@ -170,8 +196,15 @@ function buildPokemonCard(spec: ImportPokemonSpec): PokemonCard {
   };
 }
 
-function buildPokemonInstance(spec: ImportPokemonSpec, isActive: boolean): PokemonInstance {
-  const card = buildPokemonCard(spec);
+function buildPokemonInstance(
+  spec: ImportPokemonSpec,
+  isActive: boolean,
+  lookup?: Map<string, PokemonCard | TrainerCard | EnergyCard>,
+): PokemonInstance {
+  const resolved = lookup?.get(spec.name);
+  const card = resolved && 'stage' in resolved
+    ? (resolved as PokemonCard)
+    : buildPokemonCard(spec);
   const rawCurrentHp = typeof spec.currentHp === 'number' ? spec.currentHp : card.hp;
   return {
     id: uuidv4(),
@@ -189,7 +222,13 @@ function toCardSpec(value: string | ImportCardSpec): ImportCardSpec {
   return value;
 }
 
-function buildZoneCard(spec: ImportCardSpec): PokemonCard | TrainerCard | EnergyCard {
+function buildZoneCard(
+  spec: ImportCardSpec,
+  lookup?: Map<string, PokemonCard | TrainerCard | EnergyCard>,
+): PokemonCard | TrainerCard | EnergyCard {
+  const resolved = lookup?.get(spec.name);
+  if (resolved) return { ...resolved, id: uuidv4() };
+
   const kind = spec.kind ?? inferKind(spec.name);
 
   if (kind === 'pokemon') {
@@ -228,19 +267,20 @@ function buildZoneCard(spec: ImportCardSpec): PokemonCard | TrainerCard | Energy
 
 // ─── Construcción de un jugador ────────────────────────────────────────────────
 
-function buildPlayerState(input: unknown): PlayerState {
+function buildPlayerState(input: unknown, deckPreset: DeckPreset | null): PlayerState {
   const src = (input && typeof input === 'object' ? input : {}) as ImportPlayerState;
+  const lookup = buildCardLookup(deckPreset);
 
   const active =
     src.active && typeof src.active === 'object' && typeof src.active.name === 'string'
-      ? buildPokemonInstance(src.active, true)
+      ? buildPokemonInstance(src.active, true, lookup)
       : null;
 
   const bench: (PokemonInstance | null)[] = [];
   if (Array.isArray(src.bench)) {
     for (const slot of src.bench.slice(0, MAX_BENCH)) {
       if (slot && typeof slot === 'object' && typeof slot.name === 'string') {
-        bench.push(buildPokemonInstance(slot, false));
+        bench.push(buildPokemonInstance(slot, false, lookup));
       } else {
         bench.push(null);
       }
@@ -249,7 +289,7 @@ function buildPlayerState(input: unknown): PlayerState {
 
   const toCards = (arr: unknown): (PokemonCard | TrainerCard | EnergyCard)[] => {
     if (!Array.isArray(arr)) return [];
-    return arr.map((item) => buildZoneCard(toCardSpec(item)));
+    return arr.map((item) => buildZoneCard(toCardSpec(item), lookup));
   };
 
   const makePlaceholders = (count: number, label: string): TrainerCard[] =>
@@ -282,7 +322,7 @@ function buildPlayerState(input: unknown): PlayerState {
 
 // ─── Función principal ─────────────────────────────────────────────────────────
 
-export function importStateFromJson(text: string): ImportResult {
+export function importStateFromJson(text: string, decks?: ImportDecks): ImportResult {
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
@@ -313,8 +353,8 @@ export function importStateFromJson(text: string): ImportResult {
     }
   }
 
-  const player1 = buildPlayerState(src.player1);
-  const player2 = buildPlayerState(src.player2);
+  const player1 = buildPlayerState(src.player1, decks?.player1 ?? null);
+  const player2 = buildPlayerState(src.player2, decks?.player2 ?? null);
 
   const gameState: GameState = {
     player1,
