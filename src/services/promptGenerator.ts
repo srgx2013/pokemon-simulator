@@ -24,7 +24,7 @@ function energyLabel(e: { name?: string; type: string }): string {
   return e.name || `${capitalize(e.type)} Energy`;
 }
 
-function buildDeckSection(deck: DeckPreset | null, label: string): string {
+function buildDeckSection(deck: DeckPreset | null, label: string, boardPhrase: string): string {
   if (!deck) {
     return `_${label} no cargado. Cargalo con "🎴 Nueva Partida" antes de generar el prompt._`;
   }
@@ -40,7 +40,7 @@ function buildDeckSection(deck: DeckPreset | null, label: string): string {
     .join(', ');
 
   return [
-    `${label} (solo estas cartas pueden aparecer en su tablero, con su HP):`,
+    `${label} (solo estas cartas pueden aparecer en ${boardPhrase}, con su HP):`,
     `- Pokémon: ${pokemon}`,
     `- Entrenadores: ${trainers}`,
     `- Energías: ${energies}`,
@@ -67,7 +67,7 @@ comentarios ni texto alrededor), en exactamente este formato:
   "player2": { "active": { "name": "Meowscarada ex", "hp": 310 } }
 }
 
-${buildDeckSection(deck, 'MI MAZO')}
+${buildDeckSection(deck, 'MI MAZO', 'mi tablero')}
 
 Reglas:
 - player1 = mi lado (abajo), player2 = el rival (arriba).
@@ -108,9 +108,9 @@ formato (solo nombres y números; la app resuelve el resto):
   "player2": { "active": { "name": "Comfey", "hp": 70 } }
 }
 
-${buildDeckSection(player1Deck, 'MI MAZO')}
+${buildDeckSection(player1Deck, 'MI MAZO', 'mi tablero')}
 
-${buildDeckSection(player2Deck, 'MAZO DEL RIVAL')}
+${buildDeckSection(player2Deck, 'MAZO DEL RIVAL', 'el tablero del rival')}
 
 Reglas:
 - Yo soy ${playerName} → player1. El rival → player2.
