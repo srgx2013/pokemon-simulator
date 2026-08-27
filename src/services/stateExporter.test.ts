@@ -107,4 +107,36 @@ describe('exportStateToMarkdown', () => {
 
     expect(md).not.toContain('⭐');
   });
+
+  it('muestra player1 como Tú (Jugador 1) aunque el turno sea de player2', () => {
+    const gameState = makeGameState();
+    gameState.currentPlayer = 'player2';
+    gameState.player1.active = { ...activeInstance, card: { ...activeInstance.card, name: 'P1 Mon' } };
+    gameState.player2.active = { ...activeInstance, id: 'p2-active', card: { ...activeInstance.card, name: 'P2 Mon' } };
+
+    const md = exportStateToMarkdown(gameState, null, null);
+
+    const tuIdx = md.indexOf('Tú (Jugador 1)');
+    const rivalIdx = md.indexOf('Rival (Jugador 2)');
+    const p1Idx = md.indexOf('P1 Mon');
+    const p2Idx = md.indexOf('P2 Mon');
+
+    expect(tuIdx).toBeGreaterThan(-1);
+    expect(rivalIdx).toBeGreaterThan(-1);
+    expect(p1Idx).toBeGreaterThan(tuIdx);
+    expect(p1Idx).toBeLessThan(rivalIdx);
+    expect(p2Idx).toBeGreaterThan(rivalIdx);
+  });
+
+  it('agrupa placeholders repetidos en la mano', () => {
+    const gameState = makeGameState();
+    gameState.player1.hand = Array.from({ length: 14 }, () => ({
+      id: 'x', name: 'Hidden Card', type: 'item' as const, description: '', rarity: 'common' as const,
+    }));
+
+    const md = exportStateToMarkdown(gameState, null, null);
+
+    expect(md).toContain('Hidden Card ×14');
+    expect(md.match(/Hidden Card/g)?.length).toBeLessThan(5);
+  });
 });

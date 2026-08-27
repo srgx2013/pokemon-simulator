@@ -310,18 +310,21 @@ function renderCardList(
     ? `  **${label}** (${cards.length} cartas):\n`
     : `  **${label}:**\n`;
 
-  const items = cards.map((c) => {
-    if ('stage' in c) {
-      return `    - 🟢 ${c.name} (${STAGE_NAMES[c.stage] ?? c.stage} · ${c.hp} HP)`;
+  const grouped = groupCardsByName(cards);
+  const items: string[] = [];
+  for (const [name, group] of Object.entries(grouped)) {
+    const first = group[0];
+    const suffix = group.length > 1 ? ` ×${group.length}` : '';
+    if ('stage' in first) {
+      items.push(`    - 🟢 ${name}${suffix} (${STAGE_NAMES[first.stage] ?? first.stage} · ${first.hp} HP)`);
+    } else if ('type' in first && (first as EnergyCard).quantity !== undefined) {
+      items.push(`    - ⚡ ${name}${suffix}`);
+    } else {
+      const trainer = first as TrainerCard;
+      const icon = trainer.type === 'supporter' ? '🧑‍🤝‍🧑' : trainer.type === 'stadium' ? '🏟️' : '📦';
+      items.push(`    - ${icon} ${name}${suffix} (${trainer.type})`);
     }
-    if ('type' in c && (c as EnergyCard).quantity !== undefined) {
-      const en = getCardName(c);
-      return `    - ⚡ ${en} (${(c as EnergyCard).quantity})`;
-    }
-    const trainer = c as TrainerCard;
-    const icon = trainer.type === 'supporter' ? '🧑‍🤝‍🧑' : trainer.type === 'stadium' ? '🏟️' : '📦';
-    return `    - ${icon} ${trainer.name} (${trainer.type})`;
-  });
+  }
 
   return header + items.join('\n') + '\n\n';
 }
@@ -462,10 +465,6 @@ export function exportStateToMarkdown(
 
   const side: SideLabel = currentPlayer === 'player1' ? 'Tú' : 'Rival';
   const isPlayer1Turn = currentPlayer === 'player1';
-  const current = isPlayer1Turn ? player1 : player2;
-  const opponent = isPlayer1Turn ? player2 : player1;
-  const currentDeck = isPlayer1Turn ? player1Deck : player2Deck;
-  const opponentDeck = isPlayer1Turn ? player2Deck : player1Deck;
 
   // Prize differential
   const prizeDiff = player1.prizes.length - player2.prizes.length;
@@ -511,16 +510,16 @@ export function exportStateToMarkdown(
   blocks.push(`## ${isPlayer1Turn ? '▶️ Tú' : '👤 Tú'} (Jugador 1)`);
   blocks.push('');
 
-  blocks.push(renderPokemonSection('Activo', current.active, current.hand, ''));
-  blocks.push(renderBenchSection(current.bench, current.hand));
-  blocks.push(renderCardList(current.hand, 'Mano'));
-  blocks.push(renderCardList(current.discardPile, 'Descarte'));
+  blocks.push(renderPokemonSection('Activo', player1.active, player1.hand, ''));
+  blocks.push(renderBenchSection(player1.bench, player1.hand));
+  blocks.push(renderCardList(player1.hand, 'Mano'));
+  blocks.push(renderCardList(player1.discardPile, 'Descarte'));
 
   // Deck cargado (el preset completo)
-  blocks.push(renderDeckContent(currentDeck));
+  blocks.push(renderDeckContent(player1Deck));
 
   // Cartas restantes en el mazo (las que no se han robado)
-  const remainingCards = current.deck;
+  const remainingCards = player1.deck;
   if (remainingCards.length > 0) {
     blocks.push(`  **Quedan ${remainingCards.length} cartas en el mazo** (ordenadas según quedaron):\n`);
     const grouped = groupCardsByName(remainingCards);
@@ -537,20 +536,20 @@ export function exportStateToMarkdown(
     blocks.push('');
   }
 
-  blocks.push(renderCardList(current.prizes, 'Prizes'));
+  blocks.push(renderCardList(player1.prizes, 'Prizes'));
 
   // ── Estado detallado: Rival ────────────────────────────────────────────
   blocks.push('---');
   blocks.push('');
   blocks.push(`## ${isPlayer1Turn ? '👤 Rival' : '▶️ Rival'} (Jugador 2)`);
   blocks.push('');
-  blocks.push(renderPokemonSection('Activo', opponent.active, opponent.hand, ''));
-  blocks.push(renderBenchSection(opponent.bench, opponent.hand));
-  blocks.push(renderCardList(opponent.hand, 'Mano (visible por ser simulador)'));
-  blocks.push(renderCardList(opponent.discardPile, 'Descarte'));
-  blocks.push(renderDeckContent(opponentDeck));
+  blocks.push(renderPokemonSection('Activo', player2.active, player2.hand, ''));
+  blocks.push(renderBenchSection(player2.bench, player2.hand));
+  blocks.push(renderCardList(player2.hand, 'Mano (visible por ser simulador)'));
+  blocks.push(renderCardList(player2.discardPile, 'Descarte'));
+  blocks.push(renderDeckContent(player2Deck));
 
-  const remainingOppCards = opponent.deck;
+  const remainingOppCards = player2.deck;
   if (remainingOppCards.length > 0) {
     blocks.push(`  **Quedan ${remainingOppCards.length} cartas en el mazo rival:**\n`);
     const grouped = groupCardsByName(remainingOppCards);
@@ -567,7 +566,7 @@ export function exportStateToMarkdown(
     blocks.push('');
   }
 
-  blocks.push(renderCardList(opponent.prizes, 'Prizes'));
+  blocks.push(renderCardList(player2.prizes, 'Prizes'));
 
   // ── Opciones de jugada ──────────────────────────────────────────────────
   blocks.push('---');
@@ -576,7 +575,7 @@ export function exportStateToMarkdown(
   blocks.push('');
 
   // Ataques disponibles del activo
-  const activeInstance = current.active;
+  const activeInstance = player1.active;
   if (activeInstance) {
     const usableAttacks = (activeInstance.card.attacks ?? []).filter((a) =>
       canPayCost(a.cost ?? [], activeInstance.attachedEnergy),
@@ -596,7 +595,7 @@ export function exportStateToMarkdown(
   }
 
   // Evoluciones posibles generales
-  const allEvolutions = findEvolutions(current.hand, current.active, current.bench);
+  const allEvolutions = findEvolutions(player1.hand, player1.active, player1.bench);
   if (allEvolutions.length > 0) {
     blocks.push('### Evoluciones posibles');
     blocks.push('');
@@ -608,12 +607,22 @@ export function exportStateToMarkdown(
   }
 
   // Cartas jugables desde mano
-  const playable = findPlayableCards(current.hand, current);
+  const playable = findPlayableCards(player1.hand, player1);
   if (playable.length > 0) {
     blocks.push('### Cartas en mano jugables');
     blocks.push('');
+    const playableByName = new Map<string, { count: number; type: string; action: string }>();
     for (const p of playable) {
-      blocks.push(`- **${p.name}** (${p.type}): ${p.action}`);
+      const existing = playableByName.get(p.name);
+      if (existing) {
+        existing.count++;
+      } else {
+        playableByName.set(p.name, { count: 1, type: p.type, action: p.action });
+      }
+    }
+    for (const [name, info] of playableByName) {
+      const count = info.count > 1 ? ` ×${info.count}` : '';
+      blocks.push(`- **${name}**${count} (${info.type}): ${info.action}`);
     }
     blocks.push('');
   }
@@ -621,7 +630,7 @@ export function exportStateToMarkdown(
   // Retreat
   if (activeInstance) {
     const canRetreat = activeInstance.attachedEnergy.length >= activeInstance.card.retreatCost;
-    const hasBenchTarget = current.bench.some((p) => p !== null);
+    const hasBenchTarget = player1.bench.some((p) => p !== null);
     if (canRetreat && hasBenchTarget) {
       blocks.push('### Retreat disponible');
       blocks.push('');
