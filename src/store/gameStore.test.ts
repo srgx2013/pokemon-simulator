@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { useGameStore } from './gameStore';
+import { useGameStore, hasActiveGame } from './gameStore';
 
 // Mock localStorage
 const store: Record<string, string> = {};
@@ -419,10 +419,43 @@ describe('placePokemonFromDeck', () => {
   });
 });
 
-describe('auto-save', () => {
+describe('hasActiveGame', () => {
+  it('devuelve true con deck vacío pero partida activa (deck out)', () => {
+    useGameStore.setState({
+      gameState: {
+        player1: { deck: [], hand: [{ name: 'X', type: 'item', description: '', rarity: 'common', id: '1' }], discardPile: [], prizes: [], active: null, bench: [] },
+        player2: { deck: [], hand: [], discardPile: [], prizes: [], active: null, bench: [] },
+        currentPlayer: 'player1',
+        turn: 7,
+        phase: 'turn',
+        logs: [],
+        mulligan: { player1: false, player2: false },
+      },
+    });
+
+    expect(hasActiveGame(useGameStore.getState().gameState)).toBe(true);
+  });
+
+  it('devuelve false en el estado inicial (setup, todo vacío)', () => {
+    useGameStore.setState({
+      gameState: {
+        player1: { deck: [], hand: [], discardPile: [], prizes: [], active: null, bench: [] },
+        player2: { deck: [], hand: [], discardPile: [], prizes: [], active: null, bench: [] },
+        currentPlayer: 'player1',
+        turn: 1,
+        phase: 'setup',
+        logs: [],
+        mulligan: { player1: false, player2: false },
+      },
+    });
+
+    expect(hasActiveGame(useGameStore.getState().gameState)).toBe(false);
+  });
+});
   // The initial gameState is captured when the store module is first
   // evaluated, so the restore/fallback tests re-import the module after
   // priming the mocked localStorage.
+describe('auto-save', () => {
   const reloadStore = async () => {
     vi.resetModules();
     const { useGameStore: freshStore } = await import('./gameStore');

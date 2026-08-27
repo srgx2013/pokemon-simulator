@@ -590,3 +590,21 @@ useGameStore.subscribe((state) => {
     // localStorage can throw when full or unavailable (private mode) — ignore.
   }
 });
+
+// A game is "in progress" when any meaningful state exists: cards in hand,
+// active Pokémon, prizes, a non-empty deck, or having left the setup phase.
+// deck.length alone is not a reliable signal — a deck can legitimately reach
+// zero mid-game while the game continues.
+export function hasActiveGame(state: GameState): boolean {
+  return (
+    state.phase !== 'setup' ||
+    state.player1.hand.length > 0 ||
+    state.player2.hand.length > 0 ||
+    state.player1.active !== null ||
+    state.player2.active !== null ||
+    state.player1.prizes.length > 0 ||
+    state.player2.prizes.length > 0 ||
+    state.player1.deck.length > 0 ||
+    state.player2.deck.length > 0
+  );
+}
