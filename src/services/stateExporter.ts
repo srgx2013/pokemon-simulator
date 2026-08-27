@@ -450,7 +450,14 @@ Reglas de análisis:
 3. Considerá siempre el intercambio de Prizes: cuántos le quedan a cada uno
 4. Si el rival tiene debilidad a tu tipo, explotá esa ventaja
 5. Las evoluciones y los soportes son prioridad alta
-6. Explicá tu razonamiento paso a paso, no des solo la respuesta final`;
+6. Explicá tu razonamiento paso a paso, no des solo la respuesta final
+
+Estructura de tu análisis:
+- Marcador: quién va arriba en premios.
+- Amenazas inmediatas: qué puede hacer el rival el próximo turno.
+- Mapa de premios: la secuencia concreta de KOs para llegar a 6 premios (nombrá cada objetivo y su valor en premios).
+- Secuenciación: el orden óptimo de jugadas de este turno.
+- Recomendación: una jugada concreta, con plan B si el rival te interrumpe.`;
 
 /**
  * Genera el markdown completo del estado actual para ser usado por cualquier IA.
