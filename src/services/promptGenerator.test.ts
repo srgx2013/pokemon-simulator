@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateImportPrompt } from './promptGenerator';
+import { generateImportPrompt, generateLogPrompt } from './promptGenerator';
 import type { DeckPreset } from '../types';
 
 const deck: DeckPreset = {
@@ -49,6 +49,26 @@ describe('generateImportPrompt', () => {
 
   it('avisa cuando no hay mazo cargado', () => {
     const prompt = generateImportPrompt(null);
-    expect(prompt).toContain('No tenés mazo cargado');
+    expect(prompt).toContain('MI MAZO no cargado');
+  });
+
+  it('genera el prompt de log con ambas listas y el nombre del jugador', () => {
+    const p2: DeckPreset = {
+      name: 'chandelure',
+      description: '',
+      pokemon: [
+        { name: 'Chandelure', stage: 'stage2', hp: 130, type: 'fire', attacks: [], retreatCost: 2, rarity: 'rare' },
+      ],
+      trainers: [],
+      energies: [],
+    };
+    const prompt = generateLogPrompt(deck, p2, 'srgx2013');
+
+    expect(prompt).toContain('Yo soy srgx2013');
+    expect(prompt).toContain('srgx2013 SIEMPRE es player1');
+    expect(prompt).toContain('MAZO DEL RIVAL');
+    expect(prompt).toContain('Chandelure (130)');
+    expect(prompt).toContain('Dragapult ex (320)');
+    expect(prompt).toContain("Xerosic's Machinations");
   });
 });

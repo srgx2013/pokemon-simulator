@@ -4,7 +4,7 @@ import { BattleField, DeckSelector } from './components/BattleField';
 import { ExportPanel } from './components/ExportPanel';
 import { ScenarioEditor } from './components/ScenarioEditor';
 import { importStateFromJson } from './services/stateImporter';
-import { generateImportPrompt } from './services/promptGenerator';
+import { generateImportPrompt, generateLogPrompt } from './services/promptGenerator';
 
 function App() {
   const gameState = useGameStore(state => state.gameState);
@@ -22,7 +22,7 @@ function App() {
   const [showImport, setShowImport] = useState(false);
   const [importText, setImportText] = useState('');
   const [importError, setImportError] = useState<string | null>(null);
-  const [promptCopied, setPromptCopied] = useState(false);
+  const [promptCopied, setPromptCopied] = useState<'screenshot' | 'log' | null>(null);
 
   const handleSave = () => {
     const name = prompt('Nombre del escenario:');
@@ -50,20 +50,29 @@ function App() {
     }
   };
 
-  const handleCopyPrompt = async () => {
-    const prompt = generateImportPrompt(player1Deck);
+  const copyToClipboard = async (text: string) => {
     try {
-      await navigator.clipboard.writeText(prompt);
+      await navigator.clipboard.writeText(text);
     } catch {
       const textarea = document.createElement('textarea');
-      textarea.value = prompt;
+      textarea.value = text;
       document.body.appendChild(textarea);
       textarea.select();
       document.execCommand('copy');
       document.body.removeChild(textarea);
     }
-    setPromptCopied(true);
-    setTimeout(() => setPromptCopied(false), 2500);
+  };
+
+  const handleCopyScreenshotPrompt = async () => {
+    await copyToClipboard(generateImportPrompt(player1Deck));
+    setPromptCopied('screenshot');
+    setTimeout(() => setPromptCopied(null), 2500);
+  };
+
+  const handleCopyLogPrompt = async () => {
+    await copyToClipboard(generateLogPrompt(player1Deck, player2Deck, 'srgx2013'));
+    setPromptCopied('log');
+    setTimeout(() => setPromptCopied(null), 2500);
   };
 
   return (
@@ -157,9 +166,12 @@ function App() {
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <h3>📥 Importar Escenario</h3>
             <div className="import-prompt-section">
-              <p className="import-hint"><strong>Paso 1:</strong> copiá el prompt para tu IA (incluye la lista de tu mazo).</p>
-              <button className="import-btn" onClick={handleCopyPrompt}>
-                {promptCopied ? '✅ ¡Prompt copiado!' : '📋 Copiar prompt para tu IA'}
+              <p className="import-hint"><strong>Paso 1:</strong> copiá el prompt para tu IA.</p>
+              <button className="import-btn" onClick={handleCopyLogPrompt}>
+                {promptCopied === 'log' ? '✅ ¡Copiado!' : '📋 Copiar prompt de log (recomendado)'}
+              </button>
+              <button className="import-btn" onClick={handleCopyScreenshotPrompt}>
+                {promptCopied === 'screenshot' ? '✅ ¡Copiado!' : '📷 Copiar prompt de captura'}
               </button>
               <p className="import-hint"><strong>Paso 2:</strong> pegá acá el JSON que te devuelva y cargalo.</p>
             </div>
