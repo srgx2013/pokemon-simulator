@@ -30,8 +30,14 @@ const OUTBOX = join(import.meta.dir, 'coach-outbox');
 mkdirSync(INBOX, { recursive: true });
 mkdirSync(OUTBOX, { recursive: true });
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
 function json(data: unknown, status = 200): Response {
-  return Response.json(data, { status });
+  return Response.json(data, { status, headers: corsHeaders });
 }
 
 function safeId(raw: string): string | null {
@@ -91,6 +97,11 @@ const server = Bun.serve({
   port: PORT,
   async fetch(req) {
     const url = new URL(req.url);
+
+    // ── CORS preflight ──────────────────────────────────────────────
+    if (req.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: corsHeaders });
+    }
 
     // ── Health check ────────────────────────────────────────────────
     if (req.method === 'GET' && url.pathname === '/health') {
