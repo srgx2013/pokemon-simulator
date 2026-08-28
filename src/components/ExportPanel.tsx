@@ -5,12 +5,13 @@ import { useGameStore } from '../store/gameStore';
 // http://<tu-ip-tailscale>:9000 (y arrancá el server con COACH_HOST=0.0.0.0).
 const COACH_URL = 'http://localhost:9000';
 
-type CoachStatus = 'idle' | 'sending' | 'pending' | 'done' | 'error';
+type CoachStatus = 'idle' | 'sending' | 'pending' | 'checking' | 'done' | 'error';
 
 export function ExportPanel() {
   const [copied, setCopied] = useState(false);
   const [coachStatus, setCoachStatus] = useState<CoachStatus>('idle');
   const [coachResult, setCoachResult] = useState('');
+  const [coachId, setCoachId] = useState('');
   const [coachError, setCoachError] = useState('');
   const getStateForAI = useGameStore(state => state.getStateForAI);
 
@@ -38,6 +39,7 @@ export function ExportPanel() {
     setCoachStatus('sending');
     setCoachError('');
     setCoachResult('');
+    setCoachId('');
     try {
       const markdown = getStateForAI();
       const res = await fetch(`${COACH_URL}/analyze`, {
@@ -48,29 +50,42 @@ export function ExportPanel() {
       const data = await res.json();
       if (!data.id) throw new Error('Sin id del coach');
 
+      setCoachId(data.id);
       setCoachStatus('pending');
-
-      // Polling: consulta el resultado cada 3s (máx ~60s)
-      for (let i = 0; i < 20; i++) {
-        await new Promise((r) => setTimeout(r, 3000));
-        const r2 = await fetch(`${COACH_URL}/result/${data.id}`);
-        const d2 = await r2.json();
-        if (d2.status === 'done') {
-          setCoachResult(d2.result);
-          setCoachStatus('done');
-          return;
-        }
-      }
-      setCoachStatus('error');
-      setCoachError('El coach tardó demasiado. Volvé a consultar en unos segundos.');
+      // Human-in-the-loop: el coach (pi) necesita que apretes Enter.
+      // El resultado se consulta manualmente con "Ver resultado".
     } catch {
       setCoachStatus('error');
       setCoachError('No se pudo conectar al coach server. ¿Está corriendo? (bun run coach)');
     }
   }, [getStateForAI]);
 
+  const checkCoachResult = useCallback(async () => {
+    if (!coachId) return;
+    setCoachStatus('checking');
+    try {
+      const r = await fetch(`${COACH_URL}/result/${coachId}`);
+      const d = await r.json();
+      if (d.status === 'done') {
+        setCoachResult(d.result);
+        setCoachStatus('done');
+      } else if (d.status === 'pending') {
+        setCoachStatus('pending');
+      } else if (d.status === 'error') {
+        setCoachStatus('error');
+        setCoachError(d.error ?? 'No se encontró el resultado del coach.');
+      } else {
+        setCoachStatus('error');
+        setCoachError('No se encontró el resultado del coach.');
+      }
+    } catch {
+      setCoachStatus('error');
+      setCoachError('No se pudo conectar al coach server.');
+    }
+  }, [coachId]);
+
   const stateMarkdown = getStateForAI();
-  const busy = coachStatus === 'sending' || coachStatus === 'pending';
+  const busy = coachStatus === 'sending' || coachStatus === 'pending' || coachStatus === 'checking';
 
   return (
     <div className="export-panel">
@@ -96,8 +111,25 @@ export function ExportPanel() {
         >
           {coachStatus === 'sending' ? '⏳ Enviando al coach...'
             : coachStatus === 'pending' ? '⏳ Esperando al coach...'
+            : coachStatus === 'checking' ? '⏳ Consultando...'
             : '📤 Analizar con el coach'}
         </button>
+
+        {coachId && coachStatus !== 'done' && (
+          <button
+            onClick={checkCoachResult}
+            className="import-btn"
+            disabled={coachStatus === 'checking'}
+          >
+            👁️ Ver resultado
+          </button>
+        )}
+
+        {coachStatus === 'pending' && (
+          <p className="export-hint">
+            Escenario enviado al coach. Andá a pi, apretá <strong>Enter</strong> para que analice, y clickeá <strong>Ver resultado</strong> cuando termine.
+          </p>
+        )}
 
         {coachStatus === 'done' && (
           <pre className="markdown-preview">{coachResult}</pre>
