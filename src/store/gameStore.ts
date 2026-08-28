@@ -9,7 +9,7 @@ import type {
   Scenario,
   DeckPreset
 } from '../types';
-import { exportStateToMarkdown } from '../services/stateExporter';
+import { exportStateToMarkdown, buildDeckFromPlayer } from '../services/stateExporter';
 
 interface GameStore {
   gameState: GameState;
@@ -575,7 +575,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   getStateForAI: () => {
     const { gameState, player1Deck, player2Deck } = get();
-    return exportStateToMarkdown(gameState, player1Deck, player2Deck);
+    return exportStateToMarkdown(
+      gameState,
+      player1Deck ?? buildDeckFromPlayer(gameState.player1),
+      player2Deck ?? buildDeckFromPlayer(gameState.player2),
+    );
   },
 }));
 

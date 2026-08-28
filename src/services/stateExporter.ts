@@ -372,6 +372,45 @@ function renderDeckContent(deck: DeckPreset | null): string {
   return parts.join('\n');
 }
 
+/**
+ * Reconstruye un DeckPreset a partir del estado conocido del jugador cuando no
+ * hay un mazo preset cargado. Agrega todas las cartas visibles (activo, banca,
+ * mano, mazo restante, descarte y premios) para que el coach reciba el pool
+ * completo de cartas en lugar de "No hay mazo cargado".
+ */
+export function buildDeckFromPlayer(player: PlayerState): DeckPreset {
+  const cards: (PokemonCard | TrainerCard | EnergyCard)[] = [];
+  if (player.active) cards.push(player.active.card);
+  for (const p of player.bench) if (p) cards.push(p.card);
+  cards.push(...player.hand, ...player.deck, ...player.discardPile, ...player.prizes);
+
+  const pokemon: PokemonCard[] = [];
+  const trainers: TrainerCard[] = [];
+  const energyMap = new Map<string, { name: string; type: EnergyType; quantity: number }>();
+
+  for (const c of cards) {
+    if ('stage' in c) {
+      pokemon.push(c as PokemonCard);
+    } else if ('type' in c && (c as EnergyCard).quantity !== undefined) {
+      const e = c as EnergyCard;
+      const key = e.name || `${e.type} Energy`;
+      const existing = energyMap.get(key);
+      if (existing) existing.quantity += 1;
+      else energyMap.set(key, { name: key, type: e.type as EnergyType, quantity: 1 });
+    } else {
+      trainers.push(c as TrainerCard);
+    }
+  }
+
+  return {
+    name: 'Mazo reconstruido (desde el estado)',
+    description: 'Reconstruido desde las cartas visibles del estado de juego.',
+    pokemon,
+    trainers,
+    energies: [...energyMap.values()],
+  };
+}
+
 // ─── Análisis de cartas jugables desde la mano ───────────────────────────────
 
 interface PlayableCard {
