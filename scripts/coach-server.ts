@@ -38,6 +38,54 @@ function safeId(raw: string): string | null {
   return /^[a-zA-Z0-9-]+$/.test(raw) ? raw : null;
 }
 
+// Hook de Herdr: muestra un toast (y suena) para avisar que llegó un escenario.
+// El usuario ve el aviso y le pide al coach que lo analice. Si Herdr no está
+// corriendo, se ignora silenciosamente.
+function notifyHerdr(title: string, body: string): void {
+  try {
+    const proc = Bun.spawn(
+      ['herdr', 'notification', 'show', title, '--body', body, '--sound', 'request'],
+      { stdout: 'ignore', stderr: 'ignore' },
+    );
+    proc.unref?.();
+  } catch {
+    // herdr no disponible — no crítico
+  }
+}
+
+// Descubre el pane del coach (agente pi) para enviarle mensajes. Prioriza
+// COACH_PANE_ID y si no está, consulta `herdr agent list`.
+function discoverCoachPane(): string | null {
+  const env = process.env.COACH_PANE_ID;
+  if (env) return env;
+  try {
+    const proc = Bun.spawnSync(['herdr', 'agent', 'list']);
+    const output = proc.stdout?.toString() ?? '';
+    const parsed = JSON.parse(output);
+    const agents: { agent?: string; pane_id?: string }[] = parsed?.result?.agents ?? [];
+    const coach = agents.find((a) => a.agent === 'pi') ?? agents[0];
+    return coach?.pane_id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// Escribe texto literal en el prompt del coach (sin Enter) para que el usuario
+// solo confirme. Si no hay pane, no hace nada.
+function sendToCoach(message: string): void {
+  const paneId = discoverCoachPane();
+  if (!paneId) return;
+  try {
+    const proc = Bun.spawn(
+      ['herdr', 'agent', 'send', paneId, message],
+      { stdout: 'ignore', stderr: 'ignore' },
+    );
+    proc.unref?.();
+  } catch {
+    // ignorar
+  }
+}
+
 const server = Bun.serve({
   hostname: HOST,
   port: PORT,
@@ -61,6 +109,8 @@ const server = Bun.serve({
       }
       const id = randomUUID();
       writeFileSync(join(INBOX, `${id}.md`), body.markdown);
+      notifyHerdr('🃏 Escenario recibido', `La app envió un escenario para analizar (ID ${id.slice(0, 8)}…)`);
+      sendToCoach(`🃏 Nuevo escenario en el inbox (ID ${id.slice(0, 8)}). Analizalo con el skill pokemon-tcg-coach.`);
       return json({ id, status: 'pending' });
     }
 
