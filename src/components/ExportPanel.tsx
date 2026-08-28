@@ -3,7 +3,9 @@ import { useGameStore } from '../store/gameStore';
 
 // URL del coach server local. Para acceso remoto vía Tailscale, cambiá a
 // http://<tu-ip-tailscale>:9000 (y arrancá el server con COACH_HOST=0.0.0.0).
-const COACH_URL = 'http://localhost:9000';
+// Coach server URL. For remote/Tailscale access, override with VITE_COACH_URL
+// (e.g. VITE_COACH_URL=http://100.84.33.17:9000 npm run dev:remote).
+const COACH_URL = import.meta.env.VITE_COACH_URL ?? 'http://localhost:9000';
 
 type CoachStatus = 'idle' | 'sending' | 'pending' | 'checking' | 'done' | 'error';
 
