@@ -12,7 +12,9 @@
     "test:watch": "vitest",
     "deploy": "bun run build && wrangler deploy",
     "preview:worker": "bun run build && wrangler dev",
-    "coach": "bun run scripts/coach-server.ts"
+    "coach": "bun run scripts/coach-server.ts",
+    "coach:remote": "COACH_HOST=0.0.0.0 bun run scripts/coach-server.ts",
+    "dev:remote": "vite --host"
   },
   "dependencies": {
     "react": "^19.2.4",
