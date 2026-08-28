@@ -30,3 +30,7 @@ dist-ssr
 !.dev.vars.example
 .env*
 !.env.example
+
+# coach-server runtime artifacts
+scripts/coach-inbox/
+scripts/coach-outbox/

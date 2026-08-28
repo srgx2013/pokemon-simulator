@@ -70,6 +70,20 @@ For the state provided, produce a structured answer:
 - If unsure whether a card is legal, avoid naming it and speak in general terms (e.g., "a hand-disruption Supporter" instead of "Iono").
 - Name archetypes and key threats (Dragapult ex, etc.) only when they are Standard-legal.
 
+## Coach Server Integration
+
+When the Pokémon TCG simulator's coach-server hands you a scenario to analyze (the
+request names this skill and gives an inbox path such as `scripts/coach-inbox/<id>.md`):
+
+1. **Read** the scenario markdown from the given `scripts/coach-inbox/<id>.md` (relative to the project root).
+2. **Analyze** the state with the framework in this skill — Prize Mapping, Sequencing, Win Conditions, Tempo, and the Heuristics below.
+3. **Write** your analysis as markdown to the matching `scripts/coach-outbox/<id>.md` (same `<id>`). The simulator polls this file to display your result.
+
+Output rules:
+- Keep the analysis self-contained and directly readable by the player; do not echo the raw scenario back.
+- Do not edit or delete the inbox file.
+- If the requested `<id>` file is missing, report that clearly instead of inventing a state.
+
 ## References
 
 - PokeBeach — Prize Mapping Guide: https://www.pokebeach.com/2026/01/how-prize-mapping-wins-games-with-charizard-ex

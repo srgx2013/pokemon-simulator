@@ -110,7 +110,9 @@ const server = Bun.serve({
       const id = randomUUID();
       writeFileSync(join(INBOX, `${id}.md`), body.markdown);
       notifyHerdr('🃏 Escenario recibido', `La app envió un escenario para analizar (ID ${id.slice(0, 8)}…)`);
-      sendToCoach(`🃏 Nuevo escenario en el inbox (ID ${id.slice(0, 8)}). Analizalo con el skill pokemon-tcg-coach.`);
+      sendToCoach(
+        `🃏 Nuevo escenario en el inbox: scripts/coach-inbox/${id}.md — analizalo con el skill pokemon-tcg-coach y escribí el análisis en scripts/coach-outbox/${id}.md.`,
+      );
       return json({ id, status: 'pending' });
     }
 
