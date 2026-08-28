@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 
 // URL del coach server local. Para acceso remoto vía Tailscale, cambiá a
@@ -7,14 +7,52 @@ import { useGameStore } from '../store/gameStore';
 // (e.g. VITE_COACH_URL=http://100.84.33.17:9000 npm run dev:remote).
 const COACH_URL = import.meta.env.VITE_COACH_URL ?? 'http://localhost:9000';
 
+// Persistencia de la sesion del coach para sobrevivir a que el celu mate la
+// app o recargue la SPA. El server ya guarda el resultado para siempre en
+// scripts/coach-outbox/<id>.md; solo falta que el cliente recuerde el id.
+const COACH_SESSION_KEY = 'pokemon-coach-session';
+
 type CoachStatus = 'idle' | 'sending' | 'pending' | 'checking' | 'done' | 'error';
+
+type CoachSession = {
+  coachId: string;
+  coachStatus: CoachStatus;
+  coachResult: string;
+  coachError: string;
+};
+
+function loadCoachSession(): CoachSession | null {
+  try {
+    const raw = localStorage.getItem(COACH_SESSION_KEY);
+    return raw ? (JSON.parse(raw) as CoachSession) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveCoachSession(s: CoachSession): void {
+  try {
+    localStorage.setItem(COACH_SESSION_KEY, JSON.stringify(s));
+  } catch {
+    /* localStorage no disponible: ignoramos la persistencia */
+  }
+}
+
+function clearCoachSession(): void {
+  try {
+    localStorage.removeItem(COACH_SESSION_KEY);
+  } catch {
+    /* localStorage no disponible */
+  }
+}
 
 export function ExportPanel() {
   const [copied, setCopied] = useState(false);
-  const [coachStatus, setCoachStatus] = useState<CoachStatus>('idle');
-  const [coachResult, setCoachResult] = useState('');
-  const [coachId, setCoachId] = useState('');
-  const [coachError, setCoachError] = useState('');
+  const initialSession = useMemo(loadCoachSession, []);
+  const [coachStatus, setCoachStatus] = useState<CoachStatus>(initialSession?.coachStatus ?? 'idle');
+  const [coachResult, setCoachResult] = useState(initialSession?.coachResult ?? '');
+  const [coachId, setCoachId] = useState(initialSession?.coachId ?? '');
+  const [coachError, setCoachError] = useState(initialSession?.coachError ?? '');
   const getStateForAI = useGameStore(state => state.getStateForAI);
 
   const copyStateToClipboard = useCallback(async () => {
@@ -86,6 +124,39 @@ export function ExportPanel() {
     }
   }, [coachId]);
 
+  // Persistir la sesion del coach para que "Ver resultado" y la descarga
+  // sobrevivan a un reload del celu (el server ya la guarda para siempre).
+  useEffect(() => {
+    if (coachId) {
+      saveCoachSession({ coachId, coachStatus, coachResult, coachError });
+    } else {
+      clearCoachSession();
+    }
+  }, [coachId, coachStatus, coachResult, coachError]);
+
+  // Al volver (app recargada), si habia un analisis pendiente, reconsultamos
+  // el server para recuperar el resultado automaticamente.
+  useEffect(() => {
+    if (coachId && coachStatus !== 'done' && coachStatus !== 'error') {
+      void checkCoachResult();
+    }
+    // Solo en montaje: rehidratamos desde localStorage una vez.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const downloadResult = useCallback(() => {
+    if (!coachResult) return;
+    const blob = new Blob([coachResult], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `coach-${coachId || 'analisis'}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [coachResult, coachId]);
+
   const stateMarkdown = getStateForAI();
   const busy = coachStatus === 'sending' || coachStatus === 'pending' || coachStatus === 'checking';
 
@@ -135,6 +206,12 @@ export function ExportPanel() {
 
         {coachStatus === 'done' && (
           <pre className="markdown-preview">{coachResult}</pre>
+        )}
+
+        {coachStatus === 'done' && coachResult && (
+          <button onClick={downloadResult} className="import-btn">
+            💾 Descargar .md
+          </button>
         )}
         {coachStatus === 'error' && (
           <div className="import-error">{coachError}</div>
