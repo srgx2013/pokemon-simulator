@@ -98,12 +98,16 @@ formato (solo nombres y números; la app resuelve el resto):
   "currentPlayer": "player1",
   "player1": {
     "active": { "name": "Dragapult ex", "hp": 320, "currentHp": 210,
-                "attachedEnergy": ["fire", "psychic"], "status": "none" },
+                "attachedEnergy": ["fire", "psychic"], "status": "none",
+                "evolvedThisTurn": true },
     "bench": [{ "name": "Drakloak", "hp": 90 }],
     "hand": [{ "name": "Lillie's Determination", "kind": "trainer" }],
     "prizes": 4,
     "discard": ["Fire Energy"],
-    "deck": 20
+    "deck": 20,
+    "turnActions": { "supporterUsed": true, "energyAttached": false,
+                     "retreated": false, "attacked": false },
+    "turnLog": ["Jugó Lillie's Determination", "Evolucionó Dreepy a Drakloak"]
   },
   "player2": { "active": { "name": "Comfey", "hp": 70 } }
 }
@@ -115,6 +119,20 @@ ${buildDeckSection(player2Deck, 'MAZO DEL RIVAL', 'el tablero del rival')}
 Reglas:
 - Yo soy ${playerName} → player1. El rival → player2.
   IMPORTANTE: ${playerName} SIEMPRE es player1. No lo inviertas.
+- currentPlayer = de quién es el turno en ESE momento del log (player1 si es
+  mi turno, player2 si es del rival). Fijate bien en el log a quién le toca mover.
+- Indicá las ACCIONES YA REALIZADAS este turno por cada jugador:
+  - En cada Pokémon, "evolvedThisTurn": true si ya evolucionó este turno
+    (un Pokémon recién evolucionado o jugado NO puede volver a evolucionar).
+    Marcá TODOS los que evolucionaron, activo Y banca.
+  - "turnActions" con "supporterUsed", "energyAttached", "retreated", "attacked"
+    (true/false según lo que ese jugador ya hizo este turno).
+  - "turnLog": lista en orden de las jugadas ya realizadas este turno por cada
+    jugador (ej: "Jugó Lillie's Determination", "Evolucionó Dreepy a Drakloak",
+    "Adjuntó Psychic Energy a Drakloak").
+  - SÉ CONSISTENTE: si en "turnLog" registrás que jugó un Supporter, entonces
+    "turnActions.supporterUsed" debe ser true. turnLog y turnActions deben
+    contar la misma historia.
 - El log está en español; mapeá los nombres al inglés usando las listas de
   arriba (ej: "Órdenes de Jefes" = "Boss's Orders",
   "Maquinaciones de Xero" = "Xerosic's Machinations",
