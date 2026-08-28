@@ -9,7 +9,7 @@ import type {
   Scenario,
   DeckPreset
 } from '../types';
-import { exportStateToMarkdown, buildDeckFromPlayer } from '../services/stateExporter';
+import { exportStateToMarkdown, buildDeckFromPlayer, resolveGameState } from '../services/stateExporter';
 
 interface GameStore {
   gameState: GameState;
@@ -58,23 +58,53 @@ interface GameStore {
 
 const AUTO_SAVE_KEY = 'pokemon-autosave';
 
-// Restore the in-progress game (if any) from the auto-save key. Returns null
-// for absent, corrupted, or malformed data — never throws, even when
-// localStorage is unavailable (private mode) or the JSON fails to parse.
-const loadAutoSave = (): GameState | null => {
+interface AutoSaveData {
+  gameState: GameState;
+  player1Deck: DeckPreset | null;
+  player2Deck: DeckPreset | null;
+}
+
+// Restore the in-progress game AND the selected decks (if any) from the
+// auto-save key. Returns null for absent, corrupted, or malformed data — never
+// throws, even when localStorage is unavailable (private mode) or the JSON
+// fails to parse. Tolerates the legacy format that stored only the GameState
+// (decks default to null, matching the pre-deck-persistence behavior) so old
+// auto-saves keep loading instead of being discarded.
+const loadAutoSave = (): AutoSaveData | null => {
   try {
     const raw = localStorage.getItem(AUTO_SAVE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+
+    // New shape: { gameState, player1Deck, player2Deck }.
     if (
-      parsed &&
-      typeof parsed === 'object' &&
+      parsed.gameState &&
+      typeof parsed.gameState === 'object' &&
+      (parsed.gameState.currentPlayer === 'player1' || parsed.gameState.currentPlayer === 'player2') &&
+      isValidPlayerState(parsed.gameState.player1) &&
+      isValidPlayerState(parsed.gameState.player2)
+    ) {
+      return {
+        gameState: parsed.gameState as GameState,
+        player1Deck: parsed.player1Deck ?? null,
+        player2Deck: parsed.player2Deck ?? null,
+      };
+    }
+
+    // Legacy shape: a raw GameState (no decks persisted yet).
+    if (
       (parsed.currentPlayer === 'player1' || parsed.currentPlayer === 'player2') &&
       isValidPlayerState(parsed.player1) &&
       isValidPlayerState(parsed.player2)
     ) {
-      return parsed as GameState;
+      return {
+        gameState: parsed as GameState,
+        player1Deck: null,
+        player2Deck: null,
+      };
     }
+
     return null;
   } catch {
     return null;
@@ -118,8 +148,10 @@ const createInitialGameState = (): GameState => ({
   },
 });
 
+const saved = loadAutoSave();
+
 export const useGameStore = create<GameStore>((set, get) => ({
-  gameState: loadAutoSave() ?? createInitialGameState(),
+  gameState: saved?.gameState ?? createInitialGameState(),
   selectedScenario: null,
   scenarios: [],
   customDecks: [],
@@ -557,8 +589,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({
       gameState: createInitialGameState(),
       selectedScenario: null,
-      player1Deck: null,
-      player2Deck: null,
+      player1Deck: saved?.player1Deck ?? null,
+      player2Deck: saved?.player2Deck ?? null,
     });
   },
 
@@ -575,10 +607,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   getStateForAI: () => {
     const { gameState, player1Deck, player2Deck } = get();
+    const resolved = resolveGameState(gameState);
     return exportStateToMarkdown(
-      gameState,
-      player1Deck ?? buildDeckFromPlayer(gameState.player1),
-      player2Deck ?? buildDeckFromPlayer(gameState.player2),
+      resolved,
+      player1Deck ?? buildDeckFromPlayer(resolved.player1),
+      player2Deck ?? buildDeckFromPlayer(resolved.player2),
     );
   },
 }));
@@ -589,7 +622,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
 // gameState normally and this simply mirrors whatever is current.
 useGameStore.subscribe((state) => {
   try {
-    localStorage.setItem(AUTO_SAVE_KEY, JSON.stringify(state.gameState));
+    localStorage.setItem(
+          AUTO_SAVE_KEY,
+          JSON.stringify({
+            gameState: state.gameState,
+            player1Deck: state.player1Deck,
+            player2Deck: state.player2Deck,
+          }),
+        );
   } catch {
     // localStorage can throw when full or unavailable (private mode) — ignore.
   }

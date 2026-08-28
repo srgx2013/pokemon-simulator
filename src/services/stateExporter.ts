@@ -18,6 +18,8 @@ import type {
   Ability,
 } from '../types';
 
+import { cardDatabase } from '../data/decks';
+
 // ─── Helpers de traducción ───────────────────────────────────────────────────
 
 const ENERGY_NAMES: Record<string, string> = {
@@ -174,6 +176,57 @@ interface FormattedPokemon {
   }[];
   abilities: Ability[];
   evolutions: EvolutionOption[];
+}
+
+// Re-link a (possibly stripped) Pokémon card to its canonical definition in
+// cardDatabase by display name. Mobile/imported states sometimes carry
+// placeholder instances (stage:'basic', type:'psychic', attacks:[]) — resolving
+// them makes the export show real stage/type/attacks/retreat, so
+// "Copiar Estado Completo" / "Analizar con el coach" are always complete.
+function resolvePokemonCard(card: PokemonCard): PokemonCard {
+  if (card.attacks && card.attacks.length > 0) return card;
+  const key = Object.keys(cardDatabase).find(
+    (k) => k.split('-')[0].toLowerCase() === card.name.toLowerCase(),
+  );
+  if (!key) return card;
+  const db = cardDatabase[key];
+  return {
+    ...card,
+    name: db.name,
+    stage: db.stage,
+    hp: db.hp,
+    type: db.type as PokemonCard['type'],
+    retreatCost: db.retreatCost,
+    attacks: db.attacks as PokemonCard['attacks'],
+    weakness: db.weakness as PokemonCard['weakness'],
+  };
+}
+
+function resolveCardList(
+  cards: (PokemonCard | TrainerCard | EnergyCard)[],
+): (PokemonCard | TrainerCard | EnergyCard)[] {
+  return cards.map((c) => ('stage' in c ? resolvePokemonCard(c) : c));
+}
+
+// Returns a shallow copy of the game state with every Pokémon card resolved
+// from cardDatabase. The live gameState is never mutated.
+export function resolveGameState(gameState: GameState): GameState {
+  const resolvePlayer = (p: PlayerState): PlayerState => ({
+    ...p,
+    active: p.active ? { ...p.active, card: resolvePokemonCard(p.active.card) } : null,
+    bench: p.bench.map((inst) =>
+      inst ? { ...inst, card: resolvePokemonCard(inst.card) } : inst,
+    ),
+    hand: resolveCardList(p.hand),
+    deck: resolveCardList(p.deck),
+    discardPile: resolveCardList(p.discardPile),
+    prizes: resolveCardList(p.prizes),
+  });
+  return {
+    ...gameState,
+    player1: resolvePlayer(gameState.player1),
+    player2: resolvePlayer(gameState.player2),
+  };
 }
 
 function formatPokemon(
