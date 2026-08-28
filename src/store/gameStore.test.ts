@@ -515,9 +515,9 @@ describe('auto-save', () => {
     useGameStore.getState().startGame();
 
     const saved = JSON.parse(store['pokemon-autosave']);
-    expect(saved.player1.deck).toHaveLength(60);
-    expect(saved.player2.deck).toHaveLength(60);
-    expect(saved.currentPlayer).toBe('player1');
+    expect(saved.gameState.player1.deck).toHaveLength(60);
+    expect(saved.gameState.player2.deck).toHaveLength(60);
+    expect(saved.gameState.currentPlayer).toBe('player1');
   });
 
   it('persists mutations to the auto-save key after restoring from it', async () => {
@@ -538,8 +538,8 @@ describe('auto-save', () => {
     freshStore.getState().startGame();
 
     const saved = JSON.parse(store['pokemon-autosave']);
-    expect(saved.player1.deck).toHaveLength(60);
-    expect(saved.currentPlayer).toBe('player1');
+    expect(saved.gameState.player1.deck).toHaveLength(60);
+    expect(saved.gameState.currentPlayer).toBe('player1');
   });
 });
 
@@ -592,6 +592,6 @@ describe('resetGame', () => {
     useGameStore.getState().resetGame();
 
     const saved = JSON.parse(store['pokemon-autosave']);
-    expect(saved.player1.deck).toHaveLength(0);
+    expect(saved.gameState.player1.deck).toHaveLength(0);
   });
 });
