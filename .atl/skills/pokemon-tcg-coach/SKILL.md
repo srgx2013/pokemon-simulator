@@ -36,6 +36,7 @@ Use this skill when analyzing a Pokémon TCG game state (e.g., the markdown expo
 
 ### Tempo
 - Track who is taking prizes faster. If behind, force aggressive trades; if ahead, consolidate and deny the opponent's path.
+- **Matchup tempo**: identify who assembles their win condition faster. A deck with 2 Stage-2 lines or 2 energy colors is slower than one with a single line + a dense search engine. If you are faster, the winning line is to set up YOUR attacker and strike before they finish assembling.
 
 ## Analysis Framework (how to read the simulator's markdown)
 
@@ -59,6 +60,9 @@ For the state provided, produce a structured answer:
 - Don't bench a second Pokémon ex/V when the opponent's win path is already "two 2-prize KOs".
 - **Deny the evolution**: prioritize KOing the opponent's Pokémon that are one step from evolving into a threat (especially ex / Stage 2). A 90 HP Drakloak is far easier to KO now than the 320 HP Dragapult ex it becomes next turn.
 - **Set up exact KOs**: combine damage sources (e.g., a damage-moving ability like Munkidori's Adrena-Brain + an attack) to land an exact KO that a single attack alone can't reach. Do the math: 20 (ability) + 70 (attack) = 90 = KO.
+- **Deny energy**: removing the opponent's energy (e.g., Crushing Hammer) from a Stage-2 attacker that took turns to set up costs them ~2 turns to re-attach. Combined with deny-evolution, it locks them out of their win condition.
+- **Multi-color energy tax**: decks that need 2 energy colors for their main attack are slower to assemble. Exploit that window and pressure before they are online.
+- **Consistency vs luck (post-game review)**: distinguish repeated structural failures (the deck is slow/inconsistent) from random variance (coin flips). A deck that fails the same way every game has a consistency problem, not bad luck.
 
 ## Standard Format Awareness
 
