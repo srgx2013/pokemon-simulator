@@ -41,7 +41,7 @@ Trainers:
   it('parsea Pokémon con HP y tipo reales de cardDatabase', () => {
     const result = parseDeckList('4 Dreepy TWM 128');
     expect(result.pokemon[0].hp).toBe(70);
-    expect(result.pokemon[0].type).toBe('psychic');
+    expect(result.pokemon[0].type).toBe('dragon');
   });
 
   // ── Pokémon con paréntesis: "4 Name (SET 123)" ────────────────────────────────
@@ -215,7 +215,8 @@ Energy:
     expect(result.pokemon).toHaveLength(4);
     expect(result.pokemon[0].name).toBe('CompletelyFakePokemonName');
     expect(result.pokemon[0].hp).toBe(100);
-    expect(result.pokemon[0].type).toBe('normal');
+    expect(result.pokemon[0].type).toBe('unknown');
+    expect(result.pokemon[0].unknown).toBe(true);
     expect(result.pokemon[0].stage).toBe('basic');
   });
 

@@ -112,6 +112,7 @@ export const energyColors: Record<string, string> = {
   normal: '#A8A878',
   special: '#9B7DFF',
   colorless: '#A8A878',
+  unknown: '#888888',
 };
 
 export interface CardData {
@@ -128,33 +129,10 @@ export interface CardData {
   retreatCost: number;
 }
 
-export const cardDatabase: Record<string, CardData> = {
-  // Dragapult Deck
-  'Dreepy-TWM-128': { name: 'Dreepy', set: 'TWM', num: '128', hp: 70, type: 'psychic', stage: 'basic', rarity: 'common', attacks: [{ name: 'Quick Attack', cost: ['psychic'], damage: '30', description: '' }], retreatCost: 1 },
-  'Drakloak-TWM-129': { name: 'Drakloak', set: 'TWM', num: '129', hp: 90, type: 'psychic', stage: 'stage1', rarity: 'uncommon', attacks: [{ name: 'Pierce', cost: ['psychic', 'psychic'], damage: '50', description: '' }], evolvesFrom: 'Dreepy', retreatCost: 1 },
-  'Dragapult ex-TWM-130': { name: 'Dragapult ex', set: 'TWM', num: '130', hp: 320, type: 'dragon', stage: 'stage2', rarity: 'ultra', attacks: [{ name: 'Jet Headbutt', cost: ['normal'], damage: '70', description: '' }, { name: 'Phantom Dive', cost: ['fire', 'psychic'], damage: '200', description: 'Put 6 damage counters on your opponent\'s Benched Pokémon in any way you like.' }], evolvesFrom: 'Drakloak', retreatCost: 1 },
-  'Duskull-PRE-35': { name: 'Duskull', set: 'PRE', num: '35', hp: 60, type: 'psychic', stage: 'basic', rarity: 'common', attacks: [{ name: 'Come and Get You', cost: ['psychic'], damage: '0', description: 'Put up to 3 Duskull from your discard pile onto your Bench.' }, { name: 'Mumble', cost: ['psychic'], damage: '30', description: '' }], retreatCost: 1 },
-  'Duskull-SFA-18': { name: 'Duskull', set: 'SFA', num: '18', hp: 60, type: 'psychic', stage: 'basic', rarity: 'common', attacks: [{ name: 'Come and Get You', cost: ['psychic'], damage: '0', description: 'Put up to 3 Duskull from your discard pile onto your Bench.' }, { name: 'Mumble', cost: ['psychic'], damage: '30', description: '' }], retreatCost: 1 },
-  'Dusclops-PRE-36': { name: 'Dusclops', set: 'PRE', num: '36', hp: 90, type: 'psychic', stage: 'stage1', rarity: 'uncommon', attacks: [{ name: 'Cursed Blast', cost: ['psychic'], damage: '0', description: 'Once during your turn, you may put 5 damage counters on 1 of your opponent\'s Pokémon.' }, { name: 'Fade to Black', cost: ['psychic', 'psychic'], damage: '50', description: '' }], evolvesFrom: 'Duskull', retreatCost: 1 },
-  'Dusclops-SFA-19': { name: 'Dusclops', set: 'SFA', num: '19', hp: 90, type: 'psychic', stage: 'stage1', rarity: 'uncommon', attacks: [{ name: 'Cursed Blast', cost: ['psychic'], damage: '0', description: 'Once during your turn, you may put 5 damage counters on 1 of your opponent\'s Pokémon.' }, { name: 'Fade to Black', cost: ['psychic', 'psychic'], damage: '50', description: '' }], evolvesFrom: 'Duskull', retreatCost: 1 },
-  'Dusknoir-SFA-20': { name: 'Dusknoir', set: 'SFA', num: '20', hp: 160, type: 'psychic', stage: 'stage2', rarity: 'rare', attacks: [{ name: 'Grim Marker', cost: ['psychic', 'psychic'], damage: '60', description: 'If this Pokémon is in your discard pile, put 3 damage counters on 1 of your opponent\'s Pokémon.' }, { name: 'Shadowy Touch', cost: ['psychic', 'psychic', 'psychic'], damage: '120', description: 'Switch 1 of your opponent\'s Benched Pokémon with their Active Pokémon.' }], evolvesFrom: 'Dusclops', retreatCost: 3 },
-  'Fezandipiti ex-SFA-38': { name: 'Fezandipiti ex', set: 'SFA', num: '38', hp: 210, type: 'grass', stage: 'basic', rarity: 'ultra', attacks: [{ name: 'Flit', cost: ['grass', 'grass'], damage: '50', description: '' }, { name: 'Grandflare', cost: ['grass', 'grass', 'grass'], damage: '130', description: '' }], weakness: { type: 'fire', value: '×2' }, retreatCost: 1 },
-  'Munkidori-TWM-95': { name: 'Munkidori', set: 'TWM', num: '95', hp: 110, type: 'psychic', stage: 'basic', rarity: 'uncommon', attacks: [{ name: 'Adrena-Brain', cost: ['psychic'], damage: '0', description: 'Once during your turn, if this Pokémon has any Darkness Energy attached, you may search your deck for a card and put it into your hand.' }, { name: 'Wretched Needle', cost: ['psychic', 'psychic'], damage: '60', description: 'Move 30 damage from this Pokémon to 1 of your opponent\'s Benched Pokémon.' }], weakness: { type: 'darkness', value: '×2' }, retreatCost: 1 },
-  'Hawlucha-SVI-118': { name: 'Hawlucha', set: 'SVI', num: '118', hp: 70, type: 'fighting', stage: 'basic', rarity: 'uncommon', attacks: [{ name: 'Flying Entry', cost: ['fighting'], damage: '0', description: 'When you play this Pokémon from your hand to your Bench during your turn, choose 2 of your opponent\'s Benched Pokémon and put 1 damage counter on each of them.' }, { name: 'Mach Cross', cost: ['fighting', 'fighting'], damage: '80', description: '' }], weakness: { type: 'psychic', value: '×2' }, retreatCost: 1 },
-  'Bloodmoon Ursaluna ex-SVP-177': { name: 'Bloodmoon Ursaluna ex', set: 'SVP', num: '177', hp: 260, type: 'fighting', stage: 'basic', rarity: 'ultra', attacks: [{ name: 'Seasoned Skill', cost: ['fighting'], damage: '0', description: 'Once during your turn, you may discard your hand and draw 5 cards.' }, { name: 'Blood Moon', cost: ['fighting', 'fighting', 'fighting'], damage: '220', description: 'During your next turn, this Pokémon can\'t attack.' }], retreatCost: 3 },
-  'Latias ex-SSP-220': { name: 'Latias ex', set: 'SSP', num: '220', hp: 210, type: 'psychic', stage: 'basic', rarity: 'ultra', attacks: [{ name: 'Skyliner', cost: ['psychic'], damage: '0', description: 'Your Basic Pokémon in play have no Retreat Cost.' }, { name: 'Eon Blade', cost: ['psychic', 'psychic', 'psychic'], damage: '200', description: 'During your next turn, this Pokémon\'s Eon Blade attack does 200 more damage.' }], retreatCost: 1 },
-  'Budew-PRE-4': { name: 'Budew', set: 'PRE', num: '4', hp: 30, type: 'grass', stage: 'basic', rarity: 'common', attacks: [{ name: 'Itchy Pollen', cost: ['grass'], damage: '10', description: 'During your opponent\'s next turn, they can\'t play any Item cards from their hand.' }], weakness: { type: 'fire', value: '×2' }, retreatCost: 1 },
-  // Grimmsnarl Deck
-  "Marnie's Impidimp-DRI-134": { name: "Marnie's Impidimp", set: 'DRI', num: '134', hp: 70, type: 'darkness', stage: 'basic', rarity: 'common', attacks: [{ name: 'Filch', cost: ['darkness'], damage: '0', description: 'Draw a card.' }, { name: 'Corkscrew Punch', cost: ['darkness'], damage: '10', description: '' }], retreatCost: 1 },
-  "Marnie's Morgrem-DRI-135": { name: "Marnie's Morgrem", set: 'DRI', num: '135', hp: 100, type: 'darkness', stage: 'stage1', rarity: 'uncommon', attacks: [{ name: 'Frighten', cost: ['darkness'], damage: '0', description: 'Flip a coin. If heads, your opponent\'s Active Pokémon is now Confused.' }, { name: 'Slash', cost: ['darkness', 'darkness'], damage: '60', description: '' }], evolvesFrom: "Marnie's Impidimp", retreatCost: 2 },
-  "Marnie's Grimmsnarl ex-DRI-136": { name: "Marnie's Grimmsnarl ex", set: 'DRI', num: '136', hp: 320, type: 'darkness', stage: 'stage2', rarity: 'ultra', attacks: [{ name: 'Punk Up', cost: ['darkness'], damage: '0', description: 'When you play this Pokémon from your hand to your Bench during your turn, you may put 3 damage counters on 1 of your opponent\'s Pokémon.' }, { name: 'Dark Impact', cost: ['darkness', 'darkness', 'darkness'], damage: '180', description: '' }], evolvesFrom: "Marnie's Morgrem", retreatCost: 2 },
-  'Snorunt-ASC-46': { name: 'Snorunt', set: 'ASC', num: '46', hp: 70, type: 'water', stage: 'basic', rarity: 'common', attacks: [{ name: 'Chilly', cost: ['water'], damage: '10', description: '' }], retreatCost: 1 },
-  'Froslass-TWM-53': { name: 'Froslass', set: 'TWM', num: '53', hp: 90, type: 'water', stage: 'stage1', rarity: 'uncommon', attacks: [{ name: 'Freeze-Dry', cost: ['water'], damage: '30', description: 'Flip a coin. If heads, the opponent\'s Active Pokémon is now Paralyzed.' }, { name: 'Avalanche', cost: ['water', 'water'], damage: '80', description: '' }], evolvesFrom: 'Snorunt', retreatCost: 1 },
-  'Tatsugiri-TWM-131': { name: 'Tatsugiri', set: 'TWM', num: '131', hp: 70, type: 'dragon', stage: 'basic', rarity: 'uncommon', attacks: [{ name: 'Attract Customers', cost: ['dragon'], damage: '0', description: 'Once during your turn, if this Pokémon is in the Active Spot, you may look at the top 6 cards of your deck and put 1 of them into your hand.' }, { name: 'Tail Whip', cost: ['dragon', 'colorless'], damage: '30', description: '' }], retreatCost: 1 },
-  'Budew-ASC-16': { name: 'Budew', set: 'ASC', num: '16', hp: 30, type: 'grass', stage: 'basic', rarity: 'common', attacks: [{ name: 'Itchy Pollen', cost: ['grass'], damage: '10', description: 'During your opponent\'s next turn, they can\'t play any Item cards from their hand.' }], weakness: { type: 'fire', value: '×2' }, retreatCost: 1 },
-  'Shaymin-DRI-10': { name: 'Shaymin', set: 'DRI', num: '10', hp: 70, type: 'grass', stage: 'basic', rarity: 'rare', attacks: [{ name: 'Flower Gift', cost: ['grass'], damage: '0', description: 'Once during your turn, you may search your deck for a Grass Energy and attach it to 1 of your Benched Pokémon.' }, { name: 'Magical Leaf', cost: ['grass', 'grass'], damage: '50', description: 'Flip a coin. If heads, heal 30 damage from this Pokémon.' }], weakness: { type: 'fire', value: '×2' }, retreatCost: 1 },
-};
+// ⚠️ Generado por scripts/fetch-cards.ts (npm run update-cards). No editar a mano.
+import { generatedCards } from './cards.generated';
 
+export const cardDatabase: Record<string, CardData> = generatedCards;
 export function parseDeckList(text: string): { pokemon: any[], trainers: any[], energies: any[] } {
   const lines = text.trim().split('\n');
   const pokemon: any[] = [];
@@ -195,24 +173,7 @@ export function parseDeckList(text: string): { pokemon: any[], trainers: any[], 
       const energyMatch = trimmed.match(/^(\d+)\s+(.+?)\s+Energy/i);
       if (energyMatch) {
         const quantity = parseInt(energyMatch[1]);
-        let energyType = energyMatch[2].toLowerCase();
-        // Clean up energy type - remove set codes like MEE 7
-        energyType = energyType.replace(/mee\s*\d+/i, '').replace(/\s+/g, '').trim();
-        
-        // Map common variations - ORDER MATTERS: check more specific first
-        if (energyType.includes('darkness')) energyType = 'darkness';
-        else if (energyType.includes('psychic')) energyType = 'psychic';
-        else if (energyType.includes('fire')) energyType = 'fire';
-        else if (energyType.includes('water')) energyType = 'water';
-        else if (energyType.includes('grass')) energyType = 'grass';
-        else if (energyType.includes('elec')) energyType = 'electric';
-        else if (energyType.includes('fight')) energyType = 'fighting';
-        else if (energyType.includes('metal')) energyType = 'metal';
-        else if (energyType.includes('dragon')) energyType = 'dragon';
-        else if (energyType.includes('fairy')) energyType = 'fairy';
-        else if (energyType.includes('normal')) energyType = 'normal';
-        else if (energyType.includes('special')) energyType = 'special';
-        else energyType = 'special'; // energy special no reconocida
+        let energyType = mapEnergyTypeName(energyMatch[2]);
         
         const energyName = energyMatch[2].trim() + ' Energy';
         for (let i = 0; i < quantity; i++) {
@@ -294,7 +255,7 @@ export function parseDeckList(text: string): { pokemon: any[], trainers: any[], 
         const setCode = setInfo.split(' ')[0].toUpperCase().replace('-', '');
         const setNum = setInfo.split(' ')[1]?.replace('-', '') || '';
         const setMatch = setCode === cardSet;
-        const numMatch = setNum === cardNum || !setNum || !cardNum;
+        const numMatch = normalizeCardNumber(setNum) === normalizeCardNumber(cardNum) || !setNum || !cardNum;
         
         return nameMatch && setMatch && numMatch;
       });
@@ -324,21 +285,12 @@ export function parseDeckList(text: string): { pokemon: any[], trainers: any[], 
         pokemon.push({ ...foundCard, rarity: foundCard.rarity });
       }
     } else {
-      // Ultimate fallback: create a basic Pokemon card with what we know
-      console.log(`Creating fallback card for: ${name} x${quantity}`);
-      const fallbackPokemon = {
-        name: name,
-        stage: 'basic' as const,
-        hp: 100,
-        type: 'normal',
-        attacks: [],
-        retreatCost: 1,
-        rarity: 'common' as const,
-      };
-      for (let i = 0; i < quantity; i++) {
-        pokemon.push(fallbackPokemon);
-      }
-    }
+          // No encontrada en la base local: marcar explicitamente como desconocida
+          console.error('[card-data] Unknown card (not in local DB):', name);
+          for (let i = 0; i < quantity; i++) {
+            pokemon.push(makeUnknownPokemon(name));
+          }
+        }
   }
   
   if (skipped.length > 0) {
@@ -354,7 +306,7 @@ export function parseDeckList(text: string): { pokemon: any[], trainers: any[], 
 // ASYNC VERSION WITH API LOOKUP
 // ==========================================
 
-import { fetchCard, convertApiCard, convertApiTrainer, convertApiEnergy, fetchCardFromTcgdex, convertTcgdexToCardData } from '../services/pokemonTcgApi';
+import { fetchCard, convertApiCard, convertApiTrainer, convertApiEnergy, fetchCardFromTcgdex, convertTcgdexToCardData, normalizeCardNumber } from '../services/pokemonTcgApi';
 
 // ── Fallback heurístico cuando la API no responde ──
 // Solo se usa cuando la API de Pokémon TCG no puede identificar una carta.
@@ -370,8 +322,71 @@ const FALLBACK_TRAINER_NAMES = [
   'Crispin', 'Dawn', 'PokePad', 'Poké Pad', 'Secret Box', 'Poffin',
   'Marnie', 'Rai', 'Kofu', 'Dominic', 'Kieran', 'Crispin', 'Eri', 'Bianca',
   'Lisia', 'Xerosic', 'Hand Trimmer', "Hero's Cape", 'Community Center',
-  'Festival Grounds', 'Mega', 'Jumbo Ice Cream', 'Pokégear', 'PokéGear',
+  'Festival Grounds', 'Mega', 'Jumbo Ice Cream', 'Gwynn', 'Lana', 'Pokégear', 'PokéGear',
 ];
+
+// Carta no resuelta por la API ni por la base local: se marca EXPLICITAMENTE
+
+// como desconocida (type 'unknown') en vez de inventar un HP silencioso.
+
+function mapEnergyTypeName(raw: string): EnergyType {
+  const s = raw.toLowerCase();
+  // 1) Símbolos de energía del TCG: {P}=Psychic, {D}=Darkness, {R}=Fire, etc.
+  const symbolMap: Record<string, EnergyType> = {
+    '{p}': 'psychic', '{psychic}': 'psychic',
+    '{d}': 'darkness', '{dark}': 'darkness', '{darkness}': 'darkness',
+    '{r}': 'fire', '{fire}': 'fire',
+    '{w}': 'water', '{water}': 'water',
+    '{g}': 'grass', '{grass}': 'grass',
+    '{l}': 'electric', '{lightning}': 'electric', '{elec}': 'electric',
+    '{f}': 'fighting', '{fight}': 'fighting',
+    '{m}': 'metal', '{metal}': 'metal',
+    '{y}': 'fairy', '{fairy}': 'fairy',
+    '{n}': 'dragon', '{dragon}': 'dragon',
+    '{c}': 'normal', '{colorless}': 'normal',
+  };
+  for (const sym of Object.keys(symbolMap)) {
+    if (s.includes(sym)) return symbolMap[sym];
+  }
+  // 2) Palabras clave en el nombre (orden: más específicas primero)
+  if (s.includes('darkness')) return 'darkness';
+  if (s.includes('psychic')) return 'psychic';
+  if (s.includes('fire')) return 'fire';
+  if (s.includes('water')) return 'water';
+  if (s.includes('grass')) return 'grass';
+  if (s.includes('elec')) return 'electric';
+  if (s.includes('fight')) return 'fighting';
+  if (s.includes('metal')) return 'metal';
+  if (s.includes('dragon')) return 'dragon';
+  if (s.includes('fairy')) return 'fairy';
+  if (s.includes('normal')) return 'normal';
+  // 3) Por defecto: energía especial no reconocida
+  return 'special';
+}
+
+function makeUnknownPokemon(name: string): any {
+
+  return {
+
+    name,
+
+    stage: 'basic',
+
+    hp: 100,
+
+    type: 'unknown',
+
+    attacks: [],
+
+    retreatCost: 1,
+
+    rarity: 'unknown',
+
+    unknown: true,
+
+  };
+
+}
 
 function classifyWithHeuristics(
   name: string,
@@ -382,23 +397,10 @@ function classifyWithHeuristics(
 ): void {
   // 1) Cualquier carta con "Energy" en el nombre es energía
   if (name.toLowerCase().includes('energy')) {
-    const energyMatch = name.match(/([\w\s]+?)\s*Energy/i);
+    const energyMatch = name.match(/([\w\s{}]+?)\s*Energy/i);
     let t = 'special';
     if (energyMatch) {
-      t = energyMatch[1].toLowerCase().trim();
-      if (t.includes('darkness')) t = 'darkness';
-      else if (t.includes('psychic')) t = 'psychic';
-      else if (t.includes('fire')) t = 'fire';
-      else if (t.includes('water')) t = 'water';
-      else if (t.includes('grass')) t = 'grass';
-      else if (t.includes('elec')) t = 'electric';
-      else if (t.includes('fight')) t = 'fighting';
-      else if (t.includes('metal')) t = 'metal';
-      else if (t.includes('dragon')) t = 'dragon';
-      else if (t.includes('fairy')) t = 'fairy';
-      else if (t.includes('normal')) t = 'normal';
-      else if (t.includes('special')) t = 'special';
-      else t = 'special';
+      t = mapEnergyTypeName(energyMatch[1]);
     }
 
     const key = energyMatch ? energyMatch[0].trim() : name;
@@ -411,25 +413,32 @@ function classifyWithHeuristics(
     return;
   }
 
-  // 2) Detectar trainer por nombre
-  const isTrainer = FALLBACK_TRAINER_NAMES.some(t => name.includes(t));
+  // 2) Detectar trainer por nombre (los stadiums se reconocen aunque no esten en la lista)
+
+  const isStadium = /gym|stadium|artazon|center|tower|watchtower|community|festival|prism/i.test(name);
+
+  const isTrainer = isStadium || FALLBACK_TRAINER_NAMES.some(t => name.toLowerCase().includes(t.toLowerCase()));
+
   if (isTrainer) {
-    const isSupporter = /boss|lillie|iono|hilda|arven|professor|marnie|crispin|dawn|bianca|lisia|xerosic|eri|raian|kofu|dominic|kieran/i.test(name);
-    const isStadium = /gym|stadium|artazon|center|tower|watchtower|community|festival/i.test(name);
+
+    const isSupporter = /boss|lillie|iono|hilda|arven|professor|marnie|crispin|dawn|bianca|lisia|xerosic|eri|raian|kofu|dominic|kieran|gwynn|lana/i.test(name);
+
     const type = isStadium ? 'stadium' : isSupporter ? 'supporter' : 'item';
+
     for (let i = 0; i < quantity; i++) {
-      trainers.push({ name, type, description: '', rarity: 'uncommon' });
+
+    trainers.push({ name, type, description: '', rarity: 'uncommon' });
+
     }
-    return;
+
+  return;
+
   }
 
-  // 3) Fallback final: Pokémon genérico
-  console.warn('Fallback: treating', name, 'as generic Pokemon');
+    // 3) Fallback final: marcar como desconocida explicitamente
+  console.error('[card-data] Unknown card (no API/TCGdex match):', name);
   for (let i = 0; i < quantity; i++) {
-    pokemon.push({
-      name, stage: 'basic', hp: 100,
-      type: 'normal', attacks: [], retreatCost: 1, rarity: 'common',
-    });
+    pokemon.push(makeUnknownPokemon(name));
   }
 }
 
@@ -513,6 +522,19 @@ export async function parseDeckListWithApi(
     current++;
     onProgress?.(current, total, entry.name);
 
+    // -- 0. Cache primaria local (cardDatabase) --
+    // Si la carta ya esta en la base local (set importado por el seed), la usamos
+    // sin llamar a la API: HP/tipo correctos y funciona offline.
+    if (entry.set) {
+      const localKey = `${entry.name}-${entry.set}-${normalizeCardNumber(entry.number)}`;
+      const local = cardDatabase[localKey];
+      if (local) {
+        for (let i = 0; i < entry.quantity; i++) {
+          pokemon.push({ ...local });
+        }
+        continue;
+      }
+    }
     const apiCard = await fetchCard(entry.name, entry.set, entry.number);
 
     if (apiCard && apiCard.supertype) {
@@ -540,15 +562,12 @@ export async function parseDeckListWithApi(
               }
             }
           } else {
-        // supertype desconocido — tratar como Pokémon genérico
-        console.warn("Unknown supertype " + supertype + " for " + entry.name + ", treating as Pokemon");
-        for (let i = 0; i < entry.quantity; i++) {
-          pokemon.push({
-            name: entry.name, stage: 'basic', hp: 100,
-            type: 'normal', attacks: [], retreatCost: 1, rarity: 'common',
-          });
-        }
-      }
+            // supertype desconocido — marcar explicitamente como desconocida
+            console.error('[card-data] Unknown supertype ' + supertype + ' for ' + entry.name);
+            for (let i = 0; i < entry.quantity; i++) {
+              pokemon.push(makeUnknownPokemon(entry.name));
+            }
+          }
     } else {
       // API primaria falló — intentar con TCGdex
       const tcgCardRaw = await fetchCardFromTcgdex(entry.name);

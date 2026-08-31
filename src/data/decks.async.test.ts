@@ -1,14 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock the API module
-vi.mock('../services/pokemonTcgApi', () => ({
-  fetchCard: vi.fn(),
-  convertApiCard: vi.fn(),
-  convertApiTrainer: vi.fn(),
-  convertApiEnergy: vi.fn(),
-  fetchCardFromTcgdex: vi.fn(),
-  convertTcgdexToCardData: vi.fn(),
-}));
+vi.mock('../services/pokemonTcgApi', async () => {
+  const actual = await vi.importActual('../services/pokemonTcgApi');
+  return {
+    ...actual,
+    fetchCard: vi.fn(),
+    convertApiCard: vi.fn(),
+    convertApiTrainer: vi.fn(),
+    convertApiEnergy: vi.fn(),
+    fetchCardFromTcgdex: vi.fn(),
+    convertTcgdexToCardData: vi.fn(),
+  };
+});
 
 import { parseDeckListWithApi } from './decks';
 import * as api from '../services/pokemonTcgApi';
