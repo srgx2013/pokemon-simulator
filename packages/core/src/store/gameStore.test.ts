@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createGameStore, hasActiveGame } from './gameStore';
-import { hydrate } from './hydrate';
+import { hydrate, DATA_VERSION } from './hydrate';
 import { createInMemoryStorage } from '../storage/types';
-import type { DeckPreset } from '../types';
+import type { DeckPreset, GameState } from '../types';
 
 // One in-memory adapter + one store per test, hydrated before each test
 // (strict TDD migration from the module-level store + localStorage stub: the
@@ -60,12 +60,12 @@ beforeEach(async () => {
   await hydrate(store, adapter);
 });
 
-const emptyGameState = {
+const emptyGameState: GameState = {
   player1: { deck: [], hand: [], discardPile: [], prizes: [], active: null, bench: [] },
   player2: { deck: [], hand: [], discardPile: [], prizes: [], active: null, bench: [] },
   currentPlayer: 'player1',
   turn: 1,
-  phase: 'setup' as const,
+  phase: 'setup',
   logs: [],
   mulligan: { player1: false, player2: false },
 };
@@ -632,6 +632,7 @@ describe('custom decks', () => {
   it('loadCustomDecks re-reads decks from the adapter (C-5)', async () => {
     const savedDecks = [{ ...fullDeck, id: 'stored-id' }];
     adapter = createInMemoryStorage({
+      'pokemon-data-version': DATA_VERSION,
       'pokemon-custom-decks': JSON.stringify(savedDecks),
     });
     store = createGameStore(adapter);
