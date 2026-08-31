@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { PokemonCard } from './PokemonCard';
-import { parseDeckListWithApi } from '../data/decks';
+import { parseDeckListWithApi } from '@pokemon-simulator/core/data/decks';
 import { v4 as uuidv4 } from 'uuid';
-import { energyColors } from '../data/decks';
-import type { PokemonInstance, StatusCondition } from '../types';
+import { energyColors } from '@pokemon-simulator/core/data/decks';
+import type { PokemonInstance, StatusCondition } from '@pokemon-simulator/core/types';
 
 const BASIC_ENERGY = [
   { t: 'fire', icon: '🔥', label: 'Fuego' },

@@ -3,8 +3,8 @@ import { useGameStore, hasActiveGame } from './store/gameStore';
 import { BattleField, DeckSelector } from './components/BattleField';
 import { ExportPanel } from './components/ExportPanel';
 import { ScenarioEditor } from './components/ScenarioEditor';
-import { importStateFromJson } from './services/stateImporter';
-import { generateImportPrompt, generateLogPrompt } from './services/promptGenerator';
+import { importStateFromJson } from '@pokemon-simulator/core/services/stateImporter';
+import { generateImportPrompt, generateLogPrompt } from '@pokemon-simulator/core/services/promptGenerator';
 
 function App() {
   const gameState = useGameStore(state => state.gameState);

@@ -1,6 +1,6 @@
 import { memo } from 'react';
-import type { PokemonInstance } from '../types';
-import { energyColors } from '../data/decks';
+import type { PokemonInstance } from '@pokemon-simulator/core/types';
+import { energyColors } from '@pokemon-simulator/core/data/decks';
 
 interface Props {
   pokemon: PokemonInstance;

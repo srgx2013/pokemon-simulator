@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { v4 as uuidv4 } from 'uuid';
-import { energyTypes, energyColors } from '../data/decks';
+import { energyTypes, energyColors } from '@pokemon-simulator/core/data/decks';
 
 type EditingSection = 'prizes' | 'hand' | 'discard' | 'deck' | 'active' | 'bench' | 'picker' | 'all';
 

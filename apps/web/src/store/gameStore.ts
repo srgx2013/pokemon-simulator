@@ -8,8 +8,8 @@ import type {
   StatusCondition,
   Scenario,
   DeckPreset
-} from '../types';
-import { exportStateToMarkdown, buildDeckFromPlayer, resolveGameState } from '../services/stateExporter';
+} from '@pokemon-simulator/core/types';
+import { exportStateToMarkdown, buildDeckFromPlayer, resolveGameState } from '@pokemon-simulator/core/services/stateExporter';
 
 interface GameStore {
   gameState: GameState;
