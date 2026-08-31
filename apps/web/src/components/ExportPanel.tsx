@@ -100,7 +100,7 @@ export function ExportPanel() {
       // El resultado se consulta manualmente con "Ver resultado".
     } catch {
       setCoachStatus('error');
-      setCoachError('No se pudo conectar al coach server. ¿Está corriendo? (bun run coach)');
+      setCoachError('No se pudo conectar al coach server. ¿Está corriendo? (npm run coach)');
     }
   }, [getStateForAI]);
 
