@@ -1,8 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useGameStore } from '../lib/gameStore';
+import {
+  loadCoachSession,
+  saveCoachSession,
+  clearCoachSession,
+} from '../lib/coachSession';
+import type { CoachStatus } from '../lib/coachSession';
 
 // URL del coach server local. Para acceso remoto vía Tailscale, cambiá a
 // http://<tu-ip-tailscale>:9000 (y arrancá el server con COACH_HOST=0.0.0.0).
@@ -13,49 +19,15 @@ const COACH_URL = import.meta.env.VITE_COACH_URL ?? 'http://localhost:9000';
 // Persistencia de la sesion del coach para sobrevivir a que el celu mate la
 // app o recargue la SPA. El server ya guarda el resultado para siempre en
 // scripts/coach-outbox/<id>.md; solo falta que el cliente recuerde el id.
-const COACH_SESSION_KEY = 'pokemon-coach-session';
-
-type CoachStatus = 'idle' | 'sending' | 'pending' | 'checking' | 'done' | 'error';
-
-type CoachSession = {
-  coachId: string;
-  coachStatus: CoachStatus;
-  coachResult: string;
-  coachError: string;
-};
-
-function loadCoachSession(): CoachSession | null {
-  try {
-    const raw = localStorage.getItem(COACH_SESSION_KEY);
-    return raw ? (JSON.parse(raw) as CoachSession) : null;
-  } catch {
-    return null;
-  }
-}
-
-function saveCoachSession(s: CoachSession): void {
-  try {
-    localStorage.setItem(COACH_SESSION_KEY, JSON.stringify(s));
-  } catch {
-    /* localStorage no disponible: ignoramos la persistencia */
-  }
-}
-
-function clearCoachSession(): void {
-  try {
-    localStorage.removeItem(COACH_SESSION_KEY);
-  } catch {
-    /* localStorage no disponible */
-  }
-}
+// La sesion fluye por el web adapter (7ma key, spec C-1/SC7) — la
+// implementacion vive en apps/web/src/lib/coachSession.ts.
 
 export function ExportPanel() {
   const [copied, setCopied] = useState(false);
-  const initialSession = useMemo(loadCoachSession, []);
-  const [coachStatus, setCoachStatus] = useState<CoachStatus>(initialSession?.coachStatus ?? 'idle');
-  const [coachResult, setCoachResult] = useState(initialSession?.coachResult ?? '');
-  const [coachId, setCoachId] = useState(initialSession?.coachId ?? '');
-  const [coachError, setCoachError] = useState(initialSession?.coachError ?? '');
+  const [coachStatus, setCoachStatus] = useState<CoachStatus>('idle');
+  const [coachResult, setCoachResult] = useState('');
+  const [coachId, setCoachId] = useState('');
+  const [coachError, setCoachError] = useState('');
   const [showResult, setShowResult] = useState(false);
   const getStateForAI = useGameStore(state => state.getStateForAI);
 
@@ -104,11 +76,12 @@ export function ExportPanel() {
     }
   }, [getStateForAI]);
 
-  const checkCoachResult = useCallback(async () => {
-    if (!coachId) return;
+  const checkCoachResult = useCallback(async (id?: string) => {
+    const target = id ?? coachId;
+    if (!target) return;
     setCoachStatus('checking');
     try {
-      const r = await fetch(`${COACH_URL}/result/${coachId}`);
+      const r = await fetch(`${COACH_URL}/result/${target}`);
       const d = await r.json();
       if (d.status === 'done') {
         setCoachResult(d.result);
@@ -132,19 +105,31 @@ export function ExportPanel() {
   // sobrevivan a un reload del celu (el server ya la guarda para siempre).
   useEffect(() => {
     if (coachId) {
-      saveCoachSession({ coachId, coachStatus, coachResult, coachError });
+      void saveCoachSession({ coachId, coachStatus, coachResult, coachError });
     } else {
-      clearCoachSession();
+      void clearCoachSession();
     }
   }, [coachId, coachStatus, coachResult, coachError]);
 
   // Al volver (app recargada), si habia un analisis pendiente, reconsultamos
-  // el server para recuperar el resultado automaticamente.
+  // el server para recuperar el resultado automaticamente. La sesion se
+  // restaura de forma asincrona a traves del web adapter (C-2): el id
+  // vuelve despues del render inicial, asi que el re-check usa el id
+  // restaurado explicitamente en lugar del closure del primer render.
   useEffect(() => {
-    if (coachId && coachStatus !== 'done' && coachStatus !== 'error') {
-      void checkCoachResult();
-    }
-    // Solo en montaje: rehidratamos desde localStorage una vez.
+    let cancelled = false;
+    void loadCoachSession().then((session) => {
+      if (cancelled || !session) return;
+      setCoachId(session.coachId);
+      setCoachStatus(session.coachStatus);
+      setCoachResult(session.coachResult);
+      setCoachError(session.coachError);
+      if (session.coachId && session.coachStatus !== 'done' && session.coachStatus !== 'error') {
+        void checkCoachResult(session.coachId);
+      }
+    });
+    return () => { cancelled = true; };
+    // Solo en montaje: rehidratamos la sesion del coach una vez.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -202,7 +187,7 @@ export function ExportPanel() {
 
         {coachId && coachStatus !== 'done' && (
           <button
-            onClick={checkCoachResult}
+            onClick={() => checkCoachResult()}
             className="import-btn"
             disabled={coachStatus === 'checking'}
           >
