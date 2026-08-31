@@ -26,3 +26,24 @@ body {
   width: 100%;
   min-height: 100vh;
 }
+/* Hydration skeleton gate (C-3: skeleton -> hydrate -> render) */
+.boot-skeleton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: #121212;
+  color: #e0e0e0;
+}
+.boot-skeleton-inner {
+  text-align: center;
+}
+.boot-skeleton-title {
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+.boot-skeleton-subtitle {
+  font-size: 0.95rem;
+  color: #9e9e9e;
+}

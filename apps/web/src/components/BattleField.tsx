@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useGameStore } from '../store/gameStore';
+import { useGameStore } from '../lib/gameStore';
 import { PokemonCard } from './PokemonCard';
 import { parseDeckListWithApi } from '@pokemon-simulator/core/data/decks';
 import { webStorage } from '../lib/storage';

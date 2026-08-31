@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useGameStore, hasActiveGame } from './store/gameStore';
+import { useGameStore } from './lib/gameStore';
+import { hasActiveGame } from '@pokemon-simulator/core';
 import { BattleField, DeckSelector } from './components/BattleField';
 import { ExportPanel } from './components/ExportPanel';
 import { ScenarioEditor } from './components/ScenarioEditor';
