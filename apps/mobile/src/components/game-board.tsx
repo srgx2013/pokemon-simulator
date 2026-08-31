@@ -482,6 +482,61 @@ export function GameBoard() {
     const onSlotPress = (type: 'active' | 'bench', index?: number) => setPickerSlot({ side: s, type, index });
     const onPokemonPress = (id: string) => setEditing(editing?.side === s && editing.id === id ? null : { side: s, id });
 
+    const renderActive = () => (
+      <View style={styles.activeArea}>
+        {st.active ? (
+          <PokemonCardView
+            pokemon={st.active}
+            showDetails
+            selected={editing?.side === s && editing.id === st.active.id}
+            onPress={() => onPokemonPress(st.active!.id)}
+          />
+        ) : (
+          <Pressable style={[styles.slot, styles.emptySlot]} onPress={() => onSlotPress('active')}>
+            <Text style={styles.slotLabel}>ACTIVO</Text>
+            <Text style={styles.slotPlus}>+</Text>
+          </Pressable>
+        )}
+      </View>
+    );
+
+    const renderBench = () => (
+      <View style={styles.benchArea}>
+        <Text style={styles.benchLabel}>Banca</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.benchRow}>
+          {[0, 1, 2, 3, 4].map(i => {
+            const pokemon = st.bench[i] ?? null;
+            return pokemon ? (
+              <PokemonCardView
+                key={pokemon.id}
+                pokemon={pokemon}
+                selected={editing?.side === s && editing.id === pokemon.id}
+                onPress={() => onPokemonPress(pokemon.id)}
+              />
+            ) : (
+              <Pressable key={i} style={[styles.slot, styles.emptySlot, styles.benchSlot]} onPress={() => onSlotPress('bench', i)}>
+                <Text style={styles.slotPlus}>+</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>
+    );
+
+    const renderZones = () => (
+      <View style={styles.zonesRow}>
+        {(['prizes', 'deck', 'hand', 'discard'] as ZoneKey[]).map(zone => (
+          <Pressable key={zone} style={styles.zoneChip} onPress={() => setOpenZone({ side: s, zone })}>
+            <Text style={styles.zoneChipTitle}>{ZONE_TITLES[zone]}</Text>
+            <Text style={styles.zoneChipCount}>
+              {zone === 'prizes' ? `${st.prizes.length}/${MAX_PRIZES}` : zoneCards(s, zone).length}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+    );
+
+
     return (
       <View style={styles.side}>
         <View style={styles.sideLabelRow}>
@@ -491,53 +546,19 @@ export function GameBoard() {
           </Text>
         </View>
 
-        <View style={styles.activeArea}>
-          {st.active ? (
-            <PokemonCardView
-              pokemon={st.active}
-              showDetails
-              selected={editing?.side === s && editing.id === st.active.id}
-              onPress={() => onPokemonPress(st.active!.id)}
-            />
-          ) : (
-            <Pressable style={[styles.slot, styles.emptySlot]} onPress={() => onSlotPress('active')}>
-              <Text style={styles.slotLabel}>ACTIVO</Text>
-              <Text style={styles.slotPlus}>+</Text>
-            </Pressable>
-          )}
-        </View>
-
-        <View style={styles.benchArea}>
-          <Text style={styles.benchLabel}>Banca</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.benchRow}>
-            {[0, 1, 2, 3, 4].map(i => {
-              const pokemon = st.bench[i] ?? null;
-              return pokemon ? (
-                <PokemonCardView
-                  key={pokemon.id}
-                  pokemon={pokemon}
-                  selected={editing?.side === s && editing.id === pokemon.id}
-                  onPress={() => onPokemonPress(pokemon.id)}
-                />
-              ) : (
-                <Pressable key={i} style={[styles.slot, styles.emptySlot, styles.benchSlot]} onPress={() => onSlotPress('bench', i)}>
-                  <Text style={styles.slotPlus}>+</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </View>
-
-        <View style={styles.zonesRow}>
-          {(['prizes', 'deck', 'hand', 'discard'] as ZoneKey[]).map(zone => (
-            <Pressable key={zone} style={styles.zoneChip} onPress={() => setOpenZone({ side: s, zone })}>
-              <Text style={styles.zoneChipTitle}>{ZONE_TITLES[zone]}</Text>
-              <Text style={styles.zoneChipCount}>
-                {zone === 'prizes' ? `${st.prizes.length}/${MAX_PRIZES}` : zoneCards(s, zone).length}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+        {s === 'player2' ? (
+          <>
+            {renderZones()}
+            {renderBench()}
+            {renderActive()}
+          </>
+        ) : (
+          <>
+            {renderActive()}
+            {renderBench()}
+            {renderZones()}
+          </>
+        )}
       </View>
     );
   };
