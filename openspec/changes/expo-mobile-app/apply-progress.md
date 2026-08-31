@@ -188,3 +188,79 @@ Session artifact store = `openspec` (file-based); no `openspec/state.yaml` exist
 - `loadCustomDecks`/scenario read-back behaviors are new core semantics validated by the adapted suites; web runtime smoke (reload-restore, scenario survival) is manual — recommended for `sdd-verify`/S5.1.
 - StrictMode double-mount hydrates twice in dev (idempotent by design, tested D-2); first paint shows the skeleton until hydration resolves.
 - Lint baseline debt (83 pre-existing errors) unchanged (tracked in slice 1; not introduced).
+
+---
+
+# Apply Progress — `expo-mobile-app` (PR 3 / Slice 3: S3.1–S3.4)
+> **Phase:** sdd-apply · **Change:** expo-mobile-app · **Store:** openspec (file-based)
+> **Delivery:** stacked-to-main; PR 3 = Slice 3 (mobile shell, additive; web untouched); branch `chore/expo-mobile-shell` off `d34970a` (PR 2 head / `chore/expo-storage-hydration`)
+> **Mode:** strict TDD active (`npm test`, vitest) — S3.4 is RED→GREEN (mobile adapters + clipboard wrapper); S3.1–S3.3 are scaffold/bundle-evidence tasks (TDD n/a) per tasks.md.
+> **Baseline:** d34970a, clean tree; 11 files / 173 tests green. **NOTE:** no iOS Simulator devices available in this environment (Xcode 26.6 present, zero runtimes) — S3.1–S3.3 gates are evidenced with Metro export bundles + sourcemap graph checks instead, and simulator-only claims are explicitly NOT made.
+
+## Structured status consumed
+
+Session artifact store = `openspec` (file-based); no `openspec/state.yaml` exists (store is artifact-files only) → status resolved per the SDD status-contract fallback: `applyState: in-progress → completed for Slice 3`; `dependencies`: none unmet (S3.1 → S3.2 → S3.3/S3.4 chain; S3.4 RED landed before the GREEN impl per strict TDD, see Ordering note); `blockedReasons`: none; `actionContext`: no workspace-planning mode, no `allowedEditRoots` restriction, edits confined to repo root. Skill resolution: `paths-injected` (work-unit-commits, chained-pr, branch-pr SKILL.md paths read before implementation).
+
+## Completed tasks (checkbox updates in `tasks.md` — all verified `- [x]`)
+
+| Task | Persisted checkbox | Evidence |
+|------|--------------------|----------|
+| S3.1 Expo scaffold in `apps/mobile` + root `build:mobile` | `- [x]` (commit 0734466) | `npx create-expo-app@latest` (SDK 57 default template, expo-router) → renamed `@pokemon-simulator/mobile`, added `export` script; root `npm install` registered the workspace; proof: `npm run export -w @pokemon-simulator/mobile` bundles the template app (1520 modules, iOS Hermes `.hbc`) |
+| S3.2 Metro monorepo resolution (R3) | `- [x]` (commit 78bfbec) | `apps/mobile/metro.config.js` (watchFolders=workspaceRoot; nodeModulesPaths=[app,root]); smoke import `STORAGE_KEYS` from `@pokemon-simulator/core` in `_layout.tsx`; proof: `expo export --dump-sourcemap` → sourcemap lists `packages/core/src/{index, storage/types, store/gameStore, store/hydrate, services/*}.ts` → core SOURCE resolves+transpiles through Metro |
+| S3.3 Hydration-gate shell (D-1/D-2/D-3) | `- [x]` (commit 3c87f21) | `_layout.tsx` skeleton→Tabs gate, `StorageProvider` (module-scope store + shared hydration promise — no double-init), `useStorage.ts`; four tabs (Tablero default, Biblioteca, Exportar, Escenarios); proof: `expo export` bundles all 4 routes + `storage-provider` + `useStorage` + core hydrate graph (1147 modules); D-3 grep: only mention of "coach" is a comment; simulator boot NOT verified (no simulator) |
+| S3.4 RED→GREEN mobile adapters + clipboard + tests | `- [x]` (commits 6fc0f5f RED, 5a6d584 GREEN) | RED: both suites fail `Cannot find module './storage'` / `'./clipboard'`; GREEN: `lib/storage.ts` (`mobileStorage` over AsyncStorage, C-2) + `lib/clipboard.ts` (`copyText`/`shareText`, F-1/D-4); `npm test` 13 files / 182 tests green (9 new mobile) |
+
+## TDD Cycle Evidence (strict TDD — RED → GREEN for S3.4)
+
+| Cycle | RED (failing) | GREEN (passing) | Refactor |
+|-------|---------------|-----------------|----------|
+| AsyncStorage adapter | `src/lib/storage.test.ts` — failed suite, `Cannot find module './storage'` | 7 passed (conformance vs core contract C-2/H-1/H-3: missing-key null, round-trip, overwrite, remove, idempotent remove, STORAGE_KEYS routing, named helpers) | none (new file) |
+| Clipboard wrapper | `src/lib/clipboard.test.ts` — failed suite, `Cannot find module './clipboard'` | 2 passed (`copyText` → expo-clipboard `setStringAsync`; `shareText` → expo-file-system temp `pokemon-export-*.md` in cache + expo-sharing `shareAsync(uri, {mimeType: 'text/markdown'})`) | none (new file) |
+
+## Files changed (6 work-unit commits on `chore/expo-mobile-shell`)
+
+1. `0734466 chore(mobile): scaffold Expo SDK 57 app in the npm workspace` — `apps/mobile/**` (create-expo-app SDK 57 default template + `.gitignore`/`app.json`/`tsconfig.json`/`assets`/`scripts/reset-project.js`; template AI-meta noise `.claude/`, `AGENTS.md`, `CLAUDE.md` deleted), `package.json` (root `build:mobile`), `package-lock.json` (mobile workspace deps)
+2. `78bfbec feat(mobile): configure Metro for the npm-workspaces monorepo` — `apps/mobile/metro.config.js` (new, design §2b adapted to SDK 57/Metro 0.84), `src/app/_layout.tsx` (core-import smoke probe `STORAGE_KEYS`)
+3. `6fc0f5f test(mobile): add RED AsyncStorage adapter and clipboard wrapper tests` — `src/lib/storage.test.ts`, `src/lib/clipboard.test.ts`, `apps/mobile/vitest.config.ts`, `vitest.workspace.ts` (+`apps/mobile`), `package.json`/`package-lock.json` (expo-clipboard/expo-sharing/expo-file-system/async-storage deps)
+4. `5a6d584 feat(mobile): add AsyncStorage adapter and clipboard/share bridge` — `src/lib/storage.ts`, `src/lib/clipboard.ts` (design §4.5)
+5. `3c87f21 feat(mobile): add hydration-gate shell with four expo-router tabs` — `src/app/_layout.tsx` (gate + `<Tabs>`), `src/app/{index,decks,export,scenarios}.tsx` stubs, `src/components/storage-provider.tsx`, `src/hooks/useStorage.ts`, `src/global.d.ts`, `apps/mobile/tsconfig.json` (extends root base + `@/*`/core paths), root `tsconfig.json` (+`apps/mobile` reference), deleted template demo surface (`explore.tsx`, `app-tabs.{tsx,web.tsx}`, `animated-icon.web.tsx`+module.css), template strict fixes (`type`-only imports in external-link/collapsible/themed-text/themed-view)
+
+## Test commands run (all green at HEAD)
+
+- `npm test` → **13 files, 182 tests pass** (baseline 11/173; +9 mobile: 7 adapter conformance + 2 clipboard)
+- `npx tsc -b` → clean across **three** workspaces (core + web + mobile now in the root solution)
+- `npm run build` (web) → `✓ built`; hashes **byte-identical to slice 2** (`index-ZIy-rXDp.css`, `index-BRTt3H1-.js`) — web untouched (A-5)
+- `npm run export -w @pokemon-simulator/mobile` → iOS Hermes bundle `_expo/static/js/ios/entry-0df8b9f2….hbc` (3.7MB, 1147 modules) containing the shell + core graph
+- Metro sourcemap files list `apps/mobile/src/{app/*, components/storage-provider, hooks/useStorage, lib/storage}` and `packages/core/src/{index,storage/types,store/gameStore,store/hydrate,services/*}`
+- `npx tsc --noEmit -p apps/mobile/tsconfig.json` → clean standalone (mobile typechecks under the shared strict root base)
+
+## Deviation log (from design.md / tasks.md — all deliberate, none silent)
+
+1. **Expo SDK 57 scaffold, not SDK 53** — `create-expo-app@latest` installs the SDK 57 default template (latest stable; proposal says `latest stable`). Consequences: template uses `src/` layout (routes under `src/app/`), no `babel.config.js` needed (babel-preset-expo default), no `metro.config.js` shipped in template (created in S3.2), and `Tabs` must be wired in the root `_layout` (classic `Stack` navigator no longer exported by expo-router 57 — the template itself uses native tabs + flat routes). Design §2c's `app/_layout.tsx` = gate + `<Tabs>` + flat `src/app/{index,decks,export,scenarios}.tsx` is what shipped (design tree comment), instead of a `(tabs)/` group dir.
+2. **Metro flags from design §2b obsolete in Metro 0.84** — `unstable_enablePackageExports` defaults to `true` (metro-config defaults verified) and `unstable_enableSymlinks` was removed (symlinks always on for monorepos). `metro.config.js` ships the design's `watchFolders = [workspaceRoot]` + `nodeModulesPaths = [app node_modules, root node_modules]` (ORDER FLIPPED vs design's [root, app]: root-first would shadow the app-nested react@19.2.3 with the hoisted root 19.2.4, breaking RN 0.86's exact pin; Expo's own `getModulesPaths()` also uses app-first). Design's fallback (babel-plugin-module-resolver) was NOT needed — package-exports resolution works.
+3. **S3.3/S3.4 commit order swapped** — the hydration gate needs `mobileStorage`, and strict TDD requires the adapter tests RED before the impl: commits land RED tests → GREEN lib → shell (same swap slice 2 used for S2.7/S2.8). Final state identical to the tasks.md dependency order.
+4. **`apps/mobile/vitest.config.ts` include is `src/lib/**/*.test.ts`** (design said `lib/**` for the SDK 53 app-root `lib/` dir); SDK 57 template puts app code under `src/`.
+5. **Mobile tsconfig extends root `tsconfig.base.json` with Expo options inlined** (`allowJs`, `resolveJsonModule`, `lib` +DOM/ESNext, `module: preserve`, `customConditions: ['react-native']`), because TS supports one `extends`; A-3 satisfied — mobile inherits `strict`/`verbatimModuleSyntax`/`noUnusedLocals`/`noUnusedParameters`. Four template files got `type`-only import fixes to pass `verbatimModuleSyntax`. `apps/mobile` joined the root `tsc -b` solution (A-1/A-3).
+6. **`export` script scoped to `--platform ios`** — the template's all-platform export fails on the WEB static render only (`@expo/router-server` at root node_modules cannot resolve `@expo/metro-runtime`, which npm nested under `apps/mobile/node_modules` because of the react 19.2.3-vs-19.2.4 hoisting conflict). Native (this PR's target) bundles fine; expo web is not a requirement. Documented, not fixed silently; a future slice may add the dep to unblock web export.
+7. **`src/global.d.ts` ambient CSS-module declarations** — replaces the gitignored, `expo-start`-generated `expo-env.d.ts` for deterministic standalone `tsc -p apps/mobile` (template `theme.ts` imports `@/global.css`).
+8. **Template demo cleanup within scaffold scope** — deleted `explore.tsx` + `app-tabs.{tsx,web.tsx}` (route wiring replaced by the four-tab gate) and `animated-icon.web.tsx`+`animated-icon.module.css` (unused web demo variant that blocked strict CSS-module typing). Remaining themed components stay (generated; usable by slice 4).
+
+## Remaining tasks (slice 2 tail + 4+, out of scope for PR 3 — exact unchecked lines)
+
+- `- [ ] S2.12` — REFACTOR: ExportPanel coach session through the web adapter (7th key)
+- `- [ ] S2.13` — GREEN: core barrel + DOM-free boundary scan (barrel content already shipped at S2.11; scan re-verification remains)
+- `- [ ] S4.1` … `- [ ] S4.5` (screens)
+- `- [ ] S5.1` … `- [ ] S5.3` (verification sweep)
+- Parent-owned lifecycle gates (bounded review, workload guard, sdd-verify, sdd-archive) remain `- [ ]` — preserved byte-for-byte.
+
+## Workload / PR boundary
+
+- **PR 3 = Slice 3 (S3.1–S3.4)**, 6 commits + docs commit; branch `chore/expo-mobile-shell` from `d34970a`. Hand-written lines ≈ 700 (shell + libs + tests + configs); generated scaffold + lockfile dominate the diff. The forecast listed Slice 3 as `3a scaffold+metro (generated → size:exception)` + `3b shell ~250 OK` + `3c adapters ~180 OK`; the delegated run delivered all three as one PR (same pattern as PR 2). No gameplay screens (slice 4) were touched; web sources untouched.
+- After this PR: S2.12/S2.13 (slice 2 tail), then Slice 4 (screens) is the next slice; nothing in slice 4+ was touched.
+
+## Risks / residual
+
+- **Simulator verification NOT performed** (no iOS runtime installed): D-1/D-2/E-* runtime acceptance needs `sdd-verify` on a real simulator/emulator (S5.2). Bundle-level evidence is recorded above; the shell boot and four tabs may still surface runtime-only issues (e.g. Tabs re-render on theme change) that only a device run can catch.
+- AsyncStorage native module, expo-clipboard/sharing/file-system native modules are SDK-57-standard but their device behavior is unverified in this environment.
+- The template's nested `node_modules` (react 19.2.3 etc.) is an npm hoisting artifact; `package-lock.json` records it. Web export of the mobile app remains broken (deviation 6) — out of scope, tracked.
+- Root `package-lock.json` changed (+~527 packages) as expected for the new workspace (single-lockfile contract A-2).
