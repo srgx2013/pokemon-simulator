@@ -1,33 +1,10 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { ScenarioEditorView } from '@/components/scenario-editor-view';
 
 /**
- * Scenario editor tab (F-3). Slice 3 ships the placeholder; save/load/delete
- * of named scenarios lands in slice 4, seeded by core `hydrate()` read-back.
+ * Scenarios tab (F-3). Slice 3 placeholder replaced by the save/load/delete
+ * lifecycle surface (S4.5), wired to the async adapter-persisted core store
+ * actions and seeded by core `hydrate()` read-back across restarts.
  */
 export default function ScenariosScreen() {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Escenarios</Text>
-      <Text style={styles.subtitle}>Escenarios guardados disponibles próximamente.</Text>
-    </View>
-  );
+  return <ScenarioEditorView />;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    padding: 24,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-  },
-  subtitle: {
-    fontSize: 14,
-    opacity: 0.7,
-    textAlign: 'center',
-  },
-});
