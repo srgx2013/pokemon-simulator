@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { hydrate, getHydratedDecks, createInitialGameState } from './hydrate';
+import { hydrate, getHydratedDecks, createInitialGameState, DATA_VERSION } from './hydrate';
 import { createInMemoryStorage } from '../storage/types';
 import type { StorageAdapter } from '../storage/types';
 import type { GameState, DeckPreset, Scenario } from '../types';
@@ -155,7 +155,12 @@ describe('hydrate', () => {
   });
 
   it('seeds customDecks from the adapter (C-3)', async () => {
+    // Settled version: read-back tests exercise hydration with a migrated
+    // device (the realistic web state); the pre-migration wipe of decks and
+    // scenarios when the version is stale/absent is covered by migrateData's
+    // own suite.
     const adapter = createInMemoryStorage({
+      'pokemon-data-version': DATA_VERSION,
       'pokemon-custom-decks': JSON.stringify([{ ...deckFixture, id: 'custom-1' }]),
     });
     const store = makeStubStore();
@@ -167,6 +172,7 @@ describe('hydrate', () => {
 
   it('reads scenarios back from storage and seeds them (R5, F-3)', async () => {
     const adapter = createInMemoryStorage({
+      'pokemon-data-version': DATA_VERSION,
       'pokemon-scenarios': JSON.stringify([scenarioFixture]),
     });
     const store = makeStubStore();
@@ -208,6 +214,7 @@ describe('hydrate', () => {
 
   it('is tolerant to partially malformed custom decks and scenarios', async () => {
     const adapter = createInMemoryStorage({
+      'pokemon-data-version': DATA_VERSION,
       'pokemon-custom-decks': JSON.stringify([{ name: 'missing arrays' }, { ...deckFixture, id: 'good' }]),
       'pokemon-scenarios': JSON.stringify([{ id: 'bad', name: 'x' }, scenarioFixture]),
     });
