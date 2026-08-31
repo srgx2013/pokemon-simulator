@@ -1,25 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { createInMemoryStorage } from '../storage/types';
 
 // Mockeamos fetch globalmente
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
-// Mock localStorage
-const mockStorage: Record<string, string> = {};
-vi.stubGlobal('localStorage', {
-  getItem: (key: string) => mockStorage[key] ?? null,
-  setItem: (key: string, value: string) => { mockStorage[key] = value; },
-  removeItem: (key: string) => { delete mockStorage[key]; },
-  clear: () => { Object.keys(mockStorage).forEach(k => delete mockStorage[k]); },
-  length: 0,
-  key: (_: number) => null,
-});
+let adapter: ReturnType<typeof createInMemoryStorage>;
 
 import { fetchCard } from './pokemonTcgApi';
 
 beforeEach(() => {
   mockFetch.mockReset();
-  Object.keys(mockStorage).forEach(k => delete mockStorage[k]);
+  adapter = createInMemoryStorage();
 });
 
 describe('fetchCard query format', () => {
@@ -29,7 +21,7 @@ describe('fetchCard query format', () => {
       json: async () => ({ data: [{ id: 'sv9-159', name: 'Spiky Energy', supertype: 'Energy', subtypes: ['Special'] }] }),
     });
 
-    await fetchCard('Spiky Energy', 'JTG', '159');
+    await fetchCard(adapter, 'Spiky Energy', 'JTG', '159');
 
     const calledUrl = mockFetch.mock.calls[0][0] as string;
     // Las comillas son literales en la query string (no se URL-encoden)
@@ -44,7 +36,7 @@ describe('fetchCard query format', () => {
       json: async () => ({ data: [{ id: 'me1-119', name: "Lillie's Determination", supertype: 'Trainer', subtypes: ['Supporter'] }] }),
     });
 
-    await fetchCard("Lillie's Determination", 'MEG', '119');
+    await fetchCard(adapter, "Lillie's Determination", 'MEG', '119');
 
     const calledUrl = mockFetch.mock.calls[0][0] as string;
     expect(calledUrl).toContain('name:"Lillie');
@@ -57,7 +49,7 @@ describe('fetchCard query format', () => {
       json: async () => ({ data: [{ id: 'sv9-159', name: 'Spiky Energy', supertype: 'Energy' }] }),
     });
 
-    await fetchCard('Spiky Energy');
+    await fetchCard(adapter, 'Spiky Energy');
 
     const calledUrl = mockFetch.mock.calls[0][0] as string;
     expect(calledUrl).toContain('name:"Spiky%20Energy"');
@@ -70,7 +62,7 @@ describe('fetchCard query format', () => {
       json: async () => ({ data: [{ id: 'sv6-128', name: 'Dreepy', supertype: 'Pokémon' }] }),
     });
 
-    await fetchCard('Dreepy', 'TWM', '128');
+    await fetchCard(adapter, 'Dreepy', 'TWM', '128');
 
     const calledUrl = mockFetch.mock.calls[0][0] as string;
     expect(calledUrl).toContain('name:"Dreepy"');
@@ -83,7 +75,7 @@ describe('fetchCard query format', () => {
       json: async () => ({ data: [{ id: 'sv9-159', name: 'Spiky Energy', supertype: 'Energy' }] }),
     });
 
-    await fetchCard('Spiky Energy', 'JTG', '159');
+    await fetchCard(adapter, 'Spiky Energy', 'JTG', '159');
 
     const calledUrl = mockFetch.mock.calls[0][0] as string;
     expect(calledUrl).toContain('q=');
@@ -98,7 +90,7 @@ describe('fetchCard query format', () => {
       status: 400,
     });
 
-    const result = await fetchCard('Mega Kangaskhan ex', 'MEG', '104');
+    const result = await fetchCard(adapter, 'Mega Kangaskhan ex', 'MEG', '104');
 
     expect(result).toBeNull();
   });
@@ -109,8 +101,85 @@ describe('fetchCard query format', () => {
       json: async () => ({ data: [] }),
     });
 
-    const result = await fetchCard('NonexistentCard');
+    const result = await fetchCard(adapter, 'NonexistentCard');
     expect(result).toBeNull();
+  });
+});
+
+describe('adapter-driven cache', () => {
+  it('serves a second fetch of the same card from the adapter cache without hitting the network', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: [{ id: 'sv6-128', name: 'Dreepy', supertype: 'Pokémon' }] }),
+    });
+
+    const first = await fetchCard(adapter, 'Dreepy', 'TWM', '128');
+    expect(first?.id).toBe('sv6-128');
+
+    const second = await fetchCard(adapter, 'Dreepy', 'TWM', '128');
+    expect(second?.id).toBe('sv6-128');
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('serves a card directly seeded in the adapter cache (cache-first)', async () => {
+    const key = 'dreepy_twm_128';
+    const cached = {
+      [key]: { cards: [{ id: 'sv6-128', name: 'Dreepy', supertype: 'Pokémon' }], timestamp: Date.now() },
+    };
+    const seeded = createInMemoryStorage({ 'pokemon_tcg_cache': JSON.stringify(cached) });
+
+    const result = await fetchCard(seeded, 'Dreepy', 'TWM', '128');
+
+    expect(result?.id).toBe('sv6-128');
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('refetches when the cached entry is older than the 24h TTL', async () => {
+    const key = 'dreepy_twm_128';
+    const stale = {
+      [key]: { cards: [{ id: 'sv6-128', name: 'Dreepy', supertype: 'Pokémon' }], timestamp: Date.now() - 25 * 60 * 60 * 1000 },
+    };
+    const seeded = createInMemoryStorage({ 'pokemon_tcg_cache': JSON.stringify(stale) });
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: [{ id: 'sv6-128', name: 'Dreepy', supertype: 'Pokémon' }] }),
+    });
+
+    await fetchCard(seeded, 'Dreepy', 'TWM', '128');
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('stores fetched results under the pokemon_tcg_cache key', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: [{ id: 'sv6-128', name: 'Dreepy', supertype: 'Pokémon' }] }),
+    });
+
+    await fetchCard(adapter, 'Dreepy', 'TWM', '128');
+
+    const cache = JSON.parse(adapter.dump()['pokemon_tcg_cache']!);
+    expect(cache['dreepy_twm_128']?.cards[0]?.id).toBe('sv6-128');
+  });
+
+  it('tcgdex fallback caches through the tcgdex_cache key', async () => {
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, json: async () => [{ id: 'sv6-128' }] })
+      .mockResolvedValue({
+        ok: true,
+        json: async () => ({ id: 'sv6-128', name: 'Dreepy', category: 'Pokemon', stage: 'Basic', types: ['Psychic'], set: { id: 'sv6', name: 'Twilight Masquerade' }, localId: '128' }),
+      });
+
+    const { fetchCardFromTcgdex } = await import('./pokemonTcgApi');
+
+    const first = await fetchCardFromTcgdex(adapter, 'Dreepy');
+    expect(first?.id).toBe('sv6-128');
+
+    const second = await fetchCardFromTcgdex(adapter, 'Dreepy');
+    expect(second?.id).toBe('sv6-128');
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
   });
 });
 

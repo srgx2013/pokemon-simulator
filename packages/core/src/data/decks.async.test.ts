@@ -16,6 +16,9 @@ vi.mock('../services/pokemonTcgApi', async () => {
 
 import { parseDeckListWithApi } from './decks';
 import * as api from '../services/pokemonTcgApi';
+import { createInMemoryStorage } from '../storage/types';
+
+const adapter = createInMemoryStorage();
 
 function mockCard(name: string, supertype: string, subtypes: string[] = []) {
   return {
@@ -43,7 +46,7 @@ describe('parseDeckListWithApi', () => {
       attacks: [], retreatCost: 1, rarity: 'common',
     });
 
-    const r = await parseDeckListWithApi('4 Dreepy');
+    const r = await parseDeckListWithApi(adapter, '4 Dreepy');
     expect(r.pokemon).toHaveLength(4);
     expect(r.trainers).toHaveLength(0);
     expect(r.energies).toHaveLength(0);
@@ -55,7 +58,7 @@ describe('parseDeckListWithApi', () => {
       name: "Boss's Orders", type: 'supporter', description: '', rarity: 'rare',
     });
 
-    const r = await parseDeckListWithApi("2 Boss's Orders");
+    const r = await parseDeckListWithApi(adapter, "2 Boss's Orders");
     expect(r.trainers).toHaveLength(2);
     expect(r.pokemon).toHaveLength(0);
   });
@@ -66,7 +69,7 @@ describe('parseDeckListWithApi', () => {
       name: 'Psychic Energy', type: 'psychic', quantity: 1,
     });
 
-    const r = await parseDeckListWithApi('4 Psychic Energy');
+    const r = await parseDeckListWithApi(adapter, '4 Psychic Energy');
 
     expect(convertSpy).toHaveBeenCalledTimes(1);
     expect(r.energies).toHaveLength(1);
@@ -83,7 +86,7 @@ describe('parseDeckListWithApi', () => {
       name: 'Spiky Energy', type: 'special', quantity: 1,
     });
 
-    const r = await parseDeckListWithApi('4 Spiky Energy JTG 159');
+    const r = await parseDeckListWithApi(adapter, '4 Spiky Energy JTG 159');
     expect(r.energies).toHaveLength(1);
     expect(r.energies[0].name).toBe('Spiky Energy');
     expect(r.energies[0].type).toBe('special');
@@ -100,7 +103,7 @@ describe('parseDeckListWithApi', () => {
       .mockReturnValueOnce({ name: 'Spiky Energy', type: 'special', quantity: 1 })
       .mockReturnValueOnce({ name: 'Mist Energy', type: 'special', quantity: 1 });
 
-    const r = await parseDeckListWithApi(`4 Spiky Energy JTG 159
+    const r = await parseDeckListWithApi(adapter, `4 Spiky Energy JTG 159
 4 Mist Energy TEF 161`);
     expect(r.energies).toHaveLength(2);
     const names = r.energies.map(e => e.name).sort();
@@ -111,7 +114,7 @@ describe('parseDeckListWithApi', () => {
     vi.mocked(api.fetchCard).mockResolvedValue(null);
     vi.mocked(api.fetchCardFromTcgdex).mockResolvedValue(null);
 
-    const r = await parseDeckListWithApi('4 Psychic Energy');
+    const r = await parseDeckListWithApi(adapter, '4 Psychic Energy');
     expect(r.energies).toHaveLength(1);
     expect(r.energies[0].name).toBe('Psychic Energy');
     expect(r.energies[0].type).toBe('psychic');
@@ -122,7 +125,7 @@ describe('parseDeckListWithApi', () => {
     vi.mocked(api.fetchCard).mockResolvedValue(null);
     vi.mocked(api.fetchCardFromTcgdex).mockResolvedValue(null);
 
-    const r = await parseDeckListWithApi('4 Spiky Energy');
+    const r = await parseDeckListWithApi(adapter, '4 Spiky Energy');
     expect(r.energies).toHaveLength(1);
     expect(r.energies[0].name).toBe('Spiky Energy');
     expect(r.energies[0].type).toBe('special');
@@ -133,7 +136,7 @@ describe('parseDeckListWithApi', () => {
     vi.mocked(api.fetchCard).mockResolvedValue(null);
     vi.mocked(api.fetchCardFromTcgdex).mockResolvedValue(null);
 
-    const r = await parseDeckListWithApi("2 Boss's Orders");
+    const r = await parseDeckListWithApi(adapter, "2 Boss's Orders");
     expect(r.trainers).toHaveLength(2);
     expect(r.pokemon).toHaveLength(0);
   });
@@ -147,7 +150,7 @@ describe('parseDeckListWithApi', () => {
       attacks: [], retreatCost: 1, rarity: 'common',
     });
 
-    const r = await parseDeckListWithApi('2 Dreepy');
+    const r = await parseDeckListWithApi(adapter, '2 Dreepy');
     expect(r.pokemon).toHaveLength(2);
     expect(api.fetchCardFromTcgdex).toHaveBeenCalled();
   });
@@ -159,7 +162,7 @@ describe('parseDeckListWithApi', () => {
       attacks: [], retreatCost: 1, rarity: 'common',
     });
 
-    await parseDeckListWithApi('4 Dreepy\n3 Dreepy');
+    await parseDeckListWithApi(adapter, '4 Dreepy\n3 Dreepy');
     expect(api.fetchCard).toHaveBeenCalledTimes(1);
   });
 
@@ -171,7 +174,7 @@ describe('parseDeckListWithApi', () => {
     });
 
     const onProgress = vi.fn();
-    await parseDeckListWithApi('3 Dreepy', onProgress);
+    await parseDeckListWithApi(adapter, '3 Dreepy', onProgress);
     expect(onProgress).toHaveBeenCalled();
   });
 
@@ -182,6 +185,6 @@ describe('parseDeckListWithApi', () => {
       attacks: [], retreatCost: 1, rarity: 'common',
     });
 
-    await expect(parseDeckListWithApi('4 Dreepy')).resolves.toBeDefined();
+    await expect(parseDeckListWithApi(adapter, '4 Dreepy')).resolves.toBeDefined();
   });
 });
