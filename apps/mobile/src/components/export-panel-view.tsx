@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { generateImportPrompt, generateLogPrompt } from '@pokemon-simulator/core/services/promptGenerator';
+import { useRouter } from 'expo-router';
 import { useStorage } from '@/hooks/useStorage';
 import { buildExportMarkdown, importStateText } from '@/lib/importExport';
 import { copyText, shareText } from '@/lib/clipboard';
@@ -15,6 +16,7 @@ import { copyText, shareText } from '@/lib/clipboard';
  */
 export function ExportPanelView() {
   const { store } = useStorage();
+  const router = useRouter();
   const gameState = store(s => s.gameState);
   const player1Deck = store(s => s.player1Deck);
   const player2Deck = store(s => s.player2Deck);
@@ -59,6 +61,7 @@ export function ExportPanelView() {
       setImportText('');
       setImportError(null);
       setShowImport(false);
+      router.replace('/');
       Alert.alert('Escenario importado', 'El estado se restauró en el tablero.');
     } else {
       setImportError(result.errors);

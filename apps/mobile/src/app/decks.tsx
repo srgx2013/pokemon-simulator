@@ -1,24 +1,24 @@
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { deckPresets } from '@pokemon-simulator/core/data/decks';
 import type { DeckPreset } from '@pokemon-simulator/core/types';
 import { useStorage } from '@/hooks/useStorage';
 import { DeckSelectorModal } from '@/components/deck-selector-modal';
+import { StateImportModal } from '@/components/state-import-modal';
 import { deckCardCounts } from '@/lib/deckUtils';
 
 /**
- * Deck browser tab (S4.3, E-3/E-4, B-4): built-in presets load directly from the
- * bundled core data (~100KB card DB ships in the bundle, B-4); custom decks are
- * added/removed through the async adapter-persisted store actions (C-5, E-3:
- * surviving app restarts); external lists resolve through core `pokemonTcgApi`
- * with pacing + cache-first (E-4, G-1). Confirmation via `Alert`, input via
- * `Modal` (D-4).
+ * Deck browser tab (S4.3, E-3/E-4): mirrors the web — NO built-in presets; only
+ * custom decks added by the user through an external deck-list import
+ * (async adapter-persisted store actions, C-5/E-3, surviving restarts). Lists
+ * resolve through core `pokemonTcgApi` with pacing + cache-first (E-4, G-1).
+ * Confirmation via `Alert`, input via `Modal` (D-4).
  */
 export default function DecksScreen() {
   const { store } = useStorage();
   const router = useRouter();
   const customDecks = store(s => s.customDecks);
+  const importGameState = store(s => s.importGameState);
   const loadCustomDecks = store(s => s.loadCustomDecks);
   const addCustomDeck = store(s => s.addCustomDeck);
   const removeCustomDeck = store(s => s.removeCustomDeck);
@@ -29,6 +29,7 @@ export default function DecksScreen() {
   const startGame = store(s => s.startGame);
 
   const [showImport, setShowImport] = useState(false);
+  const [showStateImport, setShowStateImport] = useState(false);
 
   useEffect(() => {
     void loadCustomDecks();
@@ -98,6 +99,9 @@ export default function DecksScreen() {
         <Pressable style={styles.importBtn} onPress={() => setShowImport(true)}>
           <Text style={styles.importBtnText}>📥 Importar lista</Text>
         </Pressable>
+        <Pressable style={styles.importBtn} onPress={() => setShowStateImport(true)}>
+          <Text style={styles.importBtnText}>🧩 Importar JSON</Text>
+        </Pressable>
       </View>
 
       <View style={styles.selectedBox}>
@@ -125,9 +129,6 @@ export default function DecksScreen() {
         </Pressable>
       </View>
 
-      <Text style={styles.sectionTitle}>Mazos del juego</Text>
-      {deckPresets.map(deck => renderDeckRow(deck, false))}
-
       <Text style={styles.sectionTitle}>Tus mazos ({customDecks.length})</Text>
       {customDecks.length === 0 ? (
         <Text style={styles.emptyText}>
@@ -138,6 +139,17 @@ export default function DecksScreen() {
       )}
 
       <DeckSelectorModal visible={showImport} onClose={() => setShowImport(false)} onImported={handleImported} />
+      <StateImportModal
+        visible={showStateImport}
+        onClose={() => setShowStateImport(false)}
+        onImported={state => {
+          importGameState(state);
+          setShowStateImport(false);
+          router.replace('/');
+        }}
+        player1Deck={player1Deck}
+        player2Deck={player2Deck}
+      />
     </ScrollView>
   );
 }
