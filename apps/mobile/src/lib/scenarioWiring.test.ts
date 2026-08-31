@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createGameStore, createInMemoryStorage, hydrate, STORAGE_KEYS } from '@pokemon-simulator/core';
+import { createGameStore, createInMemoryStorage, DATA_VERSION, hydrate, STORAGE_KEYS } from '@pokemon-simulator/core';
 import type { GameStoreApi, StorageAdapter } from '@pokemon-simulator/core';
 import { charizardDeck, dragapultDeck } from '@pokemon-simulator/core/data/decks';
 import { canSaveCurrentGame, loadScenario, removeScenario, saveCurrentScenario } from './scenarioWiring';
@@ -51,12 +51,15 @@ describe('scenario CRUD wiring (S4.5 / F-3, C-5)', () => {
   describe('loadScenario', () => {
     it('restores the saved game state snapshot', async () => {
       startGame();
+      // Place the first pokemon of the built deck as P1 active so the snapshot
+      // has meaningful state to restore (startGame alone leaves active null).
+      store.getState().placePokemonFromDeck('player1', -1, 0);
+      expect(store.getState().gameState.player1.active).not.toBeNull();
+
       const scenario = await saveCurrentScenario(store, 'Snapshot');
       expect(scenario).not.toBeNull();
 
       // Mutate the live game: remove the active pokemon.
-      const stateBefore = store.getState().gameState;
-      expect(stateBefore.player1.active).not.toBeNull();
       store.getState().clearActivePokemon('player1');
       expect(store.getState().gameState.player1.active).toBeNull();
 
@@ -91,6 +94,10 @@ describe('scenario CRUD wiring (S4.5 / F-3, C-5)', () => {
   describe('hydrate read-back (F-3)', () => {
     it('seeds scenarios saved on a previous session into a fresh store', async () => {
       startGame();
+      // Settle the device first: migrateData wipes custom-decks/scenarios on a
+      // version mismatch (legacy web v2 behavior, covered by migrate.test.ts), so
+      // the saved scenario must live on a device already at the current version.
+      await adapter.setItem(STORAGE_KEYS.dataVersion, DATA_VERSION);
       await saveCurrentScenario(store, 'Across relaunch');
 
       // Simulate a relaunch: a brand-new store over the same adapter hydrates

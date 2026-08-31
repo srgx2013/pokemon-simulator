@@ -18,8 +18,9 @@ describe('mobile import/export wiring (S4.4 / F-1, F-2)', () => {
     it('falls back to deck reconstruction when no preset decks are selected', () => {
       const gameState = createInitialGameState();
       const md = buildExportMarkdown(gameState, null, null);
+      expect(md.startsWith('# Pokémon TCG — Análisis de Estado')).toBe(true);
       expect(md).toContain('## Resumen');
-      expect(md).toContain('### Estado actual');
+      expect(md).toContain('## Análisis y Recomendación');
     });
   });
 

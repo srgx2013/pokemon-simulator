@@ -94,19 +94,24 @@ describe('board state helpers (S4.2a/S4.2b / E-1)', () => {
     };
 
     it('keys limits by type for basics and by name for specials, subtracting discard usage', () => {
+      // Pool/imported energy cards carry `energyType`; fixtures are loosely typed
+      // because the core PlayerState union (PokemonCard | TrainerCard | EnergyCard)
+      // has no `energyType` member (the zone cards that do are app-internal).
+      const discardWithEnergy: any[] = [
+        { id: 'd1', name: 'fire Energy', type: 'fire', energyType: 'fire', quantity: 1 },
+        { id: 'd2', name: 'Spiky Energy', type: 'special', energyType: 'special', quantity: 1 },
+      ];
       const player: PlayerState = {
         ...emptyPlayer(),
-        discardPile: [
-          { id: 'd1', name: 'fire Energy', type: 'fire', energyType: 'fire', quantity: 1 },
-          { id: 'd2', name: 'Spiky Energy', type: 'special', energyType: 'special', quantity: 1 },
-        ],
+        discardPile: discardWithEnergy,
       };
       const limits = computeEnergyLimits(deck, player.discardPile);
       expect(limits).toEqual({ fire: 3, 'Spiky Energy': 1 });
     });
 
     it('leaves limits untouched when the discard has no matching energy keys', () => {
-      const player = { ...emptyPlayer(), discardPile: [{ id: 'd1', name: 'Ultra Ball', type: 'item' }] };
+      const nonEnergyDiscard: any[] = [{ id: 'd1', name: 'Ultra Ball', type: 'item' }];
+      const player = { ...emptyPlayer(), discardPile: nonEnergyDiscard };
       expect(computeEnergyLimits(deck, player.discardPile)).toEqual({ fire: 4, 'Spiky Energy': 2 });
     });
   });

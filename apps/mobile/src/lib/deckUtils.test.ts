@@ -30,6 +30,7 @@ const budew: PokemonCard = {
 };
 
 const iono: TrainerCard = {
+  id: 't1',
   name: 'Iono',
   type: 'supporter',
   description: 'Your opponent reveals their hand.',
