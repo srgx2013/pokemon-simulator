@@ -68,6 +68,56 @@ export function ExportPanelView() {
     }
   };
 
+  const [coachUrl, setCoachUrl] = useState('http://192.168.1.75:9000');
+  const [coachStatus, setCoachStatus] = useState<'idle' | 'sending' | 'pending' | 'checking' | 'done' | 'error'>('idle');
+  const [coachError, setCoachError] = useState<string | null>(null);
+  const [coachId, setCoachId] = useState<string | null>(null);
+  const [coachResult, setCoachResult] = useState('');
+  const [coachModalOpen, setCoachModalOpen] = useState(false);
+
+  const sendToCoach = async () => {
+    setCoachStatus('sending');
+    setCoachError(null);
+    setCoachResult('');
+    try {
+      const res = await fetch(`${coachUrl}/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markdown }),
+      });
+      const data = await res.json();
+      if (!data.id) throw new Error('sin id del coach');
+      setCoachId(data.id);
+      setCoachStatus('pending');
+    } catch {
+      setCoachStatus('error');
+      setCoachError(`No se pudo conectar al coach en ${coachUrl}. ¿Está corriendo con coach:remote en la Mac?`);
+    }
+  };
+
+  const checkCoachResult = async () => {
+    if (!coachId) return;
+    setCoachStatus('checking');
+    setCoachError(null);
+    try {
+      const r = await fetch(`${coachUrl}/result/${coachId}`);
+      const d = await r.json();
+      if (d.status === 'done') {
+        setCoachResult(d.result ?? '');
+        setCoachStatus('done');
+        setCoachModalOpen(true);
+      } else if (d.status === 'pending') {
+        setCoachStatus('pending');
+      } else {
+        setCoachStatus('error');
+        setCoachError(d.error ?? 'No se encontró el resultado del coach.');
+      }
+    } catch {
+      setCoachStatus('error');
+      setCoachError(`No se pudo consultar el resultado en ${coachUrl}.`);
+    }
+  };
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={styles.title}>📋 Exportar Estado</Text>
@@ -104,10 +154,67 @@ export function ExportPanelView() {
         </Text>
       </View>
 
+      <View style={styles.promptBox}>
+        <Text style={styles.promptTitle}>Paso 3 — enviar a Pi (misma red)</Text>
+        <TextInput
+          style={styles.coachInput}
+          value={coachUrl}
+          onChangeText={setCoachUrl}
+          autoCapitalize="none"
+          autoCorrect={false}
+          placeholder="http://<ip-de-tu-mac>:9000"
+          placeholderTextColor="#9FB2C8"
+        />
+        <View style={styles.rowButtons}>
+          <Pressable
+            style={styles.shareBtn}
+            onPress={sendToCoach}
+            disabled={coachStatus === 'sending' || coachStatus === 'checking'}
+          >
+            <Text style={styles.shareBtnText}>
+              {coachStatus === 'sending' ? '⏳ Enviando…' : '📡 Enviar a Pi'}
+            </Text>
+          </Pressable>
+          <Pressable style={styles.shareBtn} onPress={checkCoachResult} disabled={!coachId}>
+            <Text style={styles.shareBtnText}>🔍 Ver resultado</Text>
+          </Pressable>
+        </View>
+        {coachStatus === 'pending' && (
+          <Text style={styles.promptHint}>
+            Enviado (id {coachId}). Pi lo analiza en la Mac — cuando esté listo tocá
+            &quot;Ver resultado&quot;.
+          </Text>
+        )}
+        {coachStatus === 'done' && (
+          <Pressable style={styles.promptBtn} onPress={() => setCoachModalOpen(true)}>
+            <Text style={styles.promptBtnText}>🧠 Ver análisis de Pi</Text>
+          </Pressable>
+        )}
+        {coachError && <Text style={styles.errorText}>{coachError}</Text>}
+      </View>
+
       <Text style={styles.previewTitle}>👁️ Vista previa del markdown</Text>
       <Text selectable style={styles.preview}>
         {markdown}
       </Text>
+
+      <Modal visible={coachModalOpen} transparent animationType="slide" onRequestClose={() => setCoachModalOpen(false)}>
+        <View style={styles.overlay}>
+          <View style={styles.modal}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>🧠 Análisis de Pi</Text>
+              <Pressable onPress={() => setCoachModalOpen(false)} hitSlop={8}>
+                <Text style={styles.modalClose}>✕</Text>
+              </Pressable>
+            </View>
+            <ScrollView style={styles.resultScroll}>
+              <Text selectable style={styles.preview}>
+                {coachResult}
+              </Text>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={showImport} transparent animationType="slide" onRequestClose={() => setShowImport(false)}>
         <View style={styles.overlay}>
@@ -269,6 +376,20 @@ const styles = StyleSheet.create({
     color: '#9FB2C8',
     fontSize: 16,
     fontWeight: '700',
+  },
+  coachInput: {
+    backgroundColor: '#0B1220',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#22304A',
+    color: '#F5F7FA',
+    fontSize: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 10,
+  },
+  resultScroll: {
+    maxHeight: '72%',
   },
   importInput: {
     backgroundColor: '#0B1220',
