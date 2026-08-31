@@ -2,10 +2,19 @@
 
 > **Phase:** sdd-apply Slice 5 (verification sweep) · **Branch:** `chore/expo-acceptance` (off `8ac887f`)
 > **Environment evidence (runtime availability):**
-> - `xcrun simctl list runtimes` → **0 runtimes installed** (Xcode present, device types such as iPhone 17 Pro listed, but **no iOS runtime to boot** a Simulator).
-> - `xcrun simctl list devices available` → empty device list.
-> - `emulator`, `adb`, `sdkmanager` → **not on PATH**; `ANDROID_HOME` unset → **no Android emulator**.
-> - Conclusion: **no device/emulator runtime exists in this environment.** Runtime-only acceptance is therefore marked **DEFERRED (requires device/CI)** — it is NOT claimed. Bundle-level and unit-level evidence is recorded as VERIFIED per H-3 (unit-only, no jest-expo).
+> - `xcodebuild -version` → Xcode 26.6 (17F113) · **iOS 26.5 Simulator runtime (23F77) installed 2026-08-31** via `xcodebuild -downloadPlatform iOS`.
+> - Device created/booted: `pkm-sim-iPhone` (iPhone 17 Pro, `DEDF26DB-9E48-4C82-8152-CD4E0FF9985B`).
+> - Android: `emulator`/`adb`/`sdkmanager` not on PATH, `ANDROID_HOME` unset → **no Android emulator**.
+> - Conclusion: **iOS Simulator runtime available and exercised; Android emulator not available.** Evidence below distinguishes on-device iOS VERIFIED vs still DEFERRED (Android device lane / UI interaction).
+
+## Device-lane run (iOS, 2026-08-31)
+
+Built the mobile app in Debug via `xcodebuild` (`mobile.xcworkspace`, scheme `mobile`, destination `DEDF26DB…`), served the JS bundle with a local Metro dev server, exercised boot + kill/relaunch:
+
+- **Boot:** app installs (`simctl install`), launches, Metro serves 1,343 modules (`expo-router/entry.js`), **zero JS errors**.
+- **Kill-and-relaunch (E-2):** `simctl terminate` → `simctl launch` → **zero `Should have a queue`/TypeError/ReferenceError**, process stable (verified twice).
+- **Bug found & fixed on-device (branch `fix/expo-dedupe-react`, PR 8):** dual React 19.2.3/19.2.4 in the monorepo produced two React dispatchers → `Should have a queue` crash on every relaunch. Fix: align react/react-dom to 19.2.4 (tree unifies) + disable `reactCompiler`/`typedRoutes` (`app.json`). Post-fix relaunch is clean.
+- **Not exercised (no UI automation here):** tab interaction (visual smoke), share-sheet presentation, seeded-state visual restore, offline toggle (G-2), cold-start timing (N-1).
 
 ## Legend
 
@@ -20,9 +29,9 @@
 
 | # | Acceptance item | Spec trace | Evidence at HEAD | Verdict |
 |---|---|---|---|---|
-| 1 | Four surfaces reachable; board default landing tab | D-1 | 4 expo-router routes exported in the iOS bundle (sourcemap lists `src/app/{index,decks,export,scenarios}.tsx`); `app/(tabs)`-equivalent flat routes wired to Expo Router Tabs in `_layout.tsx` (SDK 57 flat-route template) | ✅ VERIFIED (bundle) · ⏳ tab *interaction* DEFERRED (device) |
-| 2 | Background / resume keeps the in-flight game; no double-init | D-2 | `components/storage-provider.tsx` shares a module-scope hydration promise; `hooks/useStorage.ts` guards re-init; core `hydrate` idempotency covered by `packages/core/src/store/hydrate.test.ts` (idempotent double-call case) | ✅ VERIFIED (unit: idempotency) · ⏳ resume behavior DEFERRED (device) |
-| 3 | Kill-and-relaunch exact restore (active/bench, HP, energy, status, hand, discard, prizes, deck) — iOS | E-2 / SC2 | Hydration read-back of `pokemon-autosave` covered by core `hydrate.test.ts` (autosave restore case) + `gameStore.test.ts` (autosave-restore semantics); board surfaces read exclusively from core store state | ✅ VERIFIED (unit: restore logic) · ⏳ on-device kill/relaunch DEFERRED (iOS simulator) |
+| 1 | Four surfaces reachable; board default landing tab | D-1 | 4 expo-router routes exported in the iOS bundle; wired to Expo Router Tabs in `_layout.tsx` (SDK 57 flat-route). On-device boot reaches the router and renders without JS errors | ✅ VERIFIED (iOS boot) · ⏳ tab *interaction* DEFERRED (UI automation) |
+| 2 | Background / resume keeps the in-flight game; no double-init | D-2 | `storage-provider.tsx` module-scope hydration promise; `useStorage.ts` guards re-init; core `hydrate` idempotency unit-tested; on-device kill → relaunch runs the hydration gate without JS errors (post-fix) | ✅ VERIFIED (unit + iOS relaunch) · ⏳ resume-in-place DEFERRED (UI automation) |
+| 3 | Kill-and-relaunch exact restore (active/bench, HP, energy, status, hand, discard, prizes, deck) — iOS | E-2 / SC2 | Hydration read-back unit-tested; on-device kill-and-relaunch on iOS 26.5 Simulator **PASSES without JS errors after the dual-React fix** (PR 8) | ✅ VERIFIED (unit + iOS kill/relaunch, post-fix) · seeded-state visual restore DEFERRED (UI automation) |
 | 4 | Kill-and-relaunch exact restore — Android | E-2 / SC3 | Same core restore logic (platform-neutral); `mobileStorage` AsyncStorage adapter conforms (unit) | ✅ VERIFIED (unit) · ⏳ on-device DEFERRED (Android emulator) |
 | 5 | Custom-deck CRUD persists across restarts | E-3 / SC6 | `core gameStore.test.ts`: `addCustomDeck`/`removeCustomDeck` persist through the in-memory adapter (C-5); `apps/mobile/src/lib/deckUtils.test.ts` (16) covers browser logic; adapter writes through `mobileStorage` | ✅ VERIFIED (unit) · ⏳ on-device restart DEFERRED |
 | 6 | Export clipboard + share sheet, text identical to web | F-1 / SC5 | `apps/mobile/src/lib/clipboard.test.ts` (2): `copyText` → expo-clipboard `setStringAsync`, `shareText` → temp `.md` + expo-sharing; `importExport.test.ts`: `buildExportMarkdown` produces the same document structure as the web exporter (core `stateExporter`); web/mobile both call the same core exporter | ✅ VERIFIED (unit) · ⏳ share sheet presentation DEFERRED (device) |
