@@ -1,15 +1,14 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 /**
- * Game board — default landing tab (D-1). Slice 3 ships the placeholder;
- * the full `GameBoard` (E-1/E-2) lands in slice 4 on top of the hydrated
- * store exposed by `useStorage()`.
+ * Deck browser tab (E-3/E-4). Slice 3 ships the placeholder; presets, custom
+ * deck CRUD and external-list resolution land in slice 4.
  */
-export default function BoardScreen() {
+export default function DecksScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Tablero</Text>
-      <Text style={styles.subtitle}>El tablero de juego llega en una próxima actualización.</Text>
+      <Text style={styles.title}>Biblioteca de mazos</Text>
+      <Text style={styles.subtitle}>Mazos y cartas disponibles próximamente.</Text>
     </View>
   );
 }

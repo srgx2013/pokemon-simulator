@@ -1,15 +1,14 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 /**
- * Game board — default landing tab (D-1). Slice 3 ships the placeholder;
- * the full `GameBoard` (E-1/E-2) lands in slice 4 on top of the hydrated
- * store exposed by `useStorage()`.
+ * Scenario editor tab (F-3). Slice 3 ships the placeholder; save/load/delete
+ * of named scenarios lands in slice 4, seeded by core `hydrate()` read-back.
  */
-export default function BoardScreen() {
+export default function ScenariosScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Tablero</Text>
-      <Text style={styles.subtitle}>El tablero de juego llega en una próxima actualización.</Text>
+      <Text style={styles.title}>Escenarios</Text>
+      <Text style={styles.subtitle}>Escenarios guardados disponibles próximamente.</Text>
     </View>
   );
 }

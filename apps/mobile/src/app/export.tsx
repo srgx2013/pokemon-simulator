@@ -1,15 +1,14 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 /**
- * Game board — default landing tab (D-1). Slice 3 ships the placeholder;
- * the full `GameBoard` (E-1/E-2) lands in slice 4 on top of the hydrated
- * store exposed by `useStorage()`.
+ * Export tab (F-1/F-2). Slice 3 ships the placeholder; clipboard/share export
+ * and import land in slice 4 via `lib/clipboard.ts` + the core exporter.
  */
-export default function BoardScreen() {
+export default function ExportScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Tablero</Text>
-      <Text style={styles.subtitle}>El tablero de juego llega en una próxima actualización.</Text>
+      <Text style={styles.title}>Exportar</Text>
+      <Text style={styles.subtitle}>Exportación e importación disponibles próximamente.</Text>
     </View>
   );
 }
