@@ -23,8 +23,12 @@
     "build:mobile": "npm run export -w @pokemon-simulator/mobile"
   },
   "dependencies": {
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
+    "expo": "~57.0.18",
+    "expo-crypto": "~57.0.2",
+    "expo-router": "~57.0.17",
+    "react-native": "0.86.3",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "uuid": "^13.0.0",
@@ -47,5 +51,9 @@
     "vite": "^8.0.1",
     "vitest": "^4.1.10",
     "wrangler": "^4.81.1"
+  },
+  "overrides": {
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
   }
 }
