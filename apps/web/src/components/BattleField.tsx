@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { PokemonCard } from './PokemonCard';
 import { parseDeckListWithApi } from '@pokemon-simulator/core/data/decks';
+import { webStorage } from '../lib/storage';
 import { v4 as uuidv4 } from 'uuid';
 import { energyColors } from '@pokemon-simulator/core/data/decks';
 import type { PokemonInstance, StatusCondition } from '@pokemon-simulator/core/types';
@@ -443,7 +444,7 @@ export function DeckSelector() {
     try {
       const deckName = prompt(`Nombre del mazo para ${targetPlayer === 'player1' ? 'P1' : 'P2'}:`) || 'Mazo';
       setImportProgress({ current: 0, total: 1, cardName: 'Iniciando...' });
-      const { pokemon, trainers, energies } = await parseDeckListWithApi(text, (cur, tot, n) => setImportProgress({ current: cur, total: tot, cardName: n }));
+      const { pokemon, trainers, energies } = await parseDeckListWithApi(webStorage, text, (cur, tot, n) => setImportProgress({ current: cur, total: tot, cardName: n }));
       setImportProgress(null);
       if (pokemon.length > 0 || trainers.length > 0 || energies.length > 0) {
         const newDeck = { id: uuidv4(), name: deckName, description: 'Importado', pokemon, trainers, energies };

@@ -2,10 +2,11 @@
 // Docs: https://docs.pokemontcg.io/
 
 import type { EnergyType } from '../types';
+import type { StorageAdapter } from '../storage/types';
+import { STORAGE_KEYS } from '../storage/types';
 
 const API_BASE = 'https://api.pokemontcg.io/v2';
 const FETCH_TIMEOUT_MS = 8000;
-const CACHE_KEY = 'pokemon_tcg_cache';
 
 // Mapeo de códigos de set comunes -> API set IDs
 // Basado en https://api.pokemontcg.io/v2/sets
@@ -61,36 +62,37 @@ export const setCodeMap: Record<string, string> = {
   'SVE': 'sve',
 };
 
-// Cache local
+// Cache local — reads/writes flow through the injected StorageAdapter
+// (spec C-1: every key, including both API caches, goes through the adapter).
 interface CacheData {
   cards: CardData[];
   timestamp: number;
 }
 
-export function getCache(): Record<string, CacheData> {
+export async function getCache(adapter: StorageAdapter): Promise<Record<string, CacheData>> {
   try {
-    const cached = localStorage.getItem(CACHE_KEY);
+    const cached = await adapter.getItem(STORAGE_KEYS.tcgCache);
     return cached ? JSON.parse(cached) : {};
   } catch {
     return {};
   }
 }
 
-export function setCache(key: string, cards: CardData[]): void {
+export async function setCache(adapter: StorageAdapter, key: string, cards: CardData[]): Promise<void> {
   try {
-    const cache = getCache();
+    const cache = await getCache(adapter);
     cache[key] = { cards, timestamp: Date.now() };
-    localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+    await adapter.setItem(STORAGE_KEYS.tcgCache, JSON.stringify(cache));
   } catch (e) {
     console.warn('Failed to cache:', e);
   }
 }
 
 // Buscar carta por nombre y set con reintentos automáticos
-export async function fetchCard(name: string, setCode?: string, number?: string): Promise<CardData | null> {
+export async function fetchCard(adapter: StorageAdapter, name: string, setCode?: string, number?: string): Promise<CardData | null> {
       const normNumber = normalizeCardNumber(number);
   const cacheKey = `${name.toLowerCase()}_${setCode || ''}_${normNumber || ''}`;
-  const cache = getCache();
+  const cache = await getCache(adapter);
   
   // Verificar cache (válido por 24 horas)
   if (cache[cacheKey] && Date.now() - cache[cacheKey].timestamp < 24 * 60 * 60 * 1000) {
@@ -137,7 +139,7 @@ export async function fetchCard(name: string, setCode?: string, number?: string)
       }
       
       if (result.length > 0) {
-        setCache(cacheKey, result);
+        await setCache(adapter, cacheKey, result);
       }
       
       return result[0] || null;
@@ -163,14 +165,14 @@ export async function fetchCard(name: string, setCode?: string, number?: string)
 }
 
 // Buscar cartas de un deck completo
-export async function fetchDeckCards(cards: { name: string; set?: string; number?: string }[]): Promise<Map<string, CardData>> {
+export async function fetchDeckCards(adapter: StorageAdapter, cards: { name: string; set?: string; number?: string }[]): Promise<Map<string, CardData>> {
   const results = new Map<string, CardData>();
   
   for (const card of cards) {
     const key = `${card.name}_${card.set || ''}_${card.number || ''}`;
     
     if (!results.has(key)) {
-      const data = await fetchCard(card.name, card.set, card.number);
+      const data = await fetchCard(adapter, card.name, card.set, card.number);
       if (data) {
         results.set(key, data);
       }
@@ -188,27 +190,26 @@ export async function fetchDeckCards(cards: { name: string; set?: string; number
 // ════════════════════════════════════════════════════════════════
 
 const TCGDEX_BASE = 'https://api.tcgdex.net/v2/en';
-const TCGDEX_CACHE_KEY = 'tcgdex_cache';
 
 interface TcgdexCacheData {
   cards: any[];
   timestamp: number;
 }
 
-function getTcgdexCache(): Record<string, TcgdexCacheData> {
+async function getTcgdexCache(adapter: StorageAdapter): Promise<Record<string, TcgdexCacheData>> {
   try {
-    const cached = localStorage.getItem(TCGDEX_CACHE_KEY);
+    const cached = await adapter.getItem(STORAGE_KEYS.tcgdexCache);
     return cached ? JSON.parse(cached) : {};
   } catch {
     return {};
   }
 }
 
-function setTcgdexCache(key: string, cards: any[]): void {
+async function setTcgdexCache(adapter: StorageAdapter, key: string, cards: any[]): Promise<void> {
   try {
-    const cache = getTcgdexCache();
+    const cache = await getTcgdexCache(adapter);
     cache[key] = { cards, timestamp: Date.now() };
-    localStorage.setItem(TCGDEX_CACHE_KEY, JSON.stringify(cache));
+    await adapter.setItem(STORAGE_KEYS.tcgdexCache, JSON.stringify(cache));
   } catch (e) {
     console.warn('Failed to cache TCGdex:', e);
   }
@@ -219,9 +220,9 @@ function setTcgdexCache(key: string, cards: any[]): void {
  * Se usa como respaldo cuando la Pokémon TCG API no encuentra la carta.
  * Retorna null si no se encuentra.
  */
-export async function fetchCardFromTcgdex(name: string): Promise<any | null> {
+export async function fetchCardFromTcgdex(adapter: StorageAdapter, name: string): Promise<any | null> {
   const cacheKey = 'name_' + name.toLowerCase();
-  const cache = getTcgdexCache();
+  const cache = await getTcgdexCache(adapter);
 
   if (cache[cacheKey] && Date.now() - cache[cacheKey].timestamp < 24 * 60 * 60 * 1000) {
     return cache[cacheKey].cards[0] || null;
@@ -247,7 +248,7 @@ export async function fetchCardFromTcgdex(name: string): Promise<any | null> {
     const cardData = await cardRes.json();
 
     // Cachear
-    setTcgdexCache(cacheKey, [cardData]);
+    await setTcgdexCache(adapter, cacheKey, [cardData]);
 
     return cardData;
   } catch (error) {

@@ -307,6 +307,7 @@ export function parseDeckList(text: string): { pokemon: any[], trainers: any[], 
 // ==========================================
 
 import { fetchCard, convertApiCard, convertApiTrainer, convertApiEnergy, fetchCardFromTcgdex, convertTcgdexToCardData, normalizeCardNumber } from '../services/pokemonTcgApi';
+import type { StorageAdapter } from '../storage/types';
 
 // ── Fallback heurístico cuando la API no responde ──
 // Solo se usa cuando la API de Pokémon TCG no puede identificar una carta.
@@ -446,6 +447,7 @@ function classifyWithHeuristics(
 // en vez de usar heurísticas. Cada carta única se busca en la API y se clasifica como
 // Pokémon, Trainer o Energy según el campo supertype de la respuesta.
 export async function parseDeckListWithApi(
+  adapter: StorageAdapter,
   text: string, 
   onProgress?: (current: number, total: number, cardName: string) => void
 ): Promise<{ pokemon: any[], trainers: any[], energies: any[] }> {
@@ -535,7 +537,7 @@ export async function parseDeckListWithApi(
         continue;
       }
     }
-    const apiCard = await fetchCard(entry.name, entry.set, entry.number);
+    const apiCard = await fetchCard(adapter, entry.name, entry.set, entry.number);
 
     if (apiCard && apiCard.supertype) {
       // API respondió — clasificar por supertype
@@ -570,7 +572,7 @@ export async function parseDeckListWithApi(
           }
     } else {
       // API primaria falló — intentar con TCGdex
-      const tcgCardRaw = await fetchCardFromTcgdex(entry.name);
+      const tcgCardRaw = await fetchCardFromTcgdex(adapter, entry.name);
       const tcgCard = tcgCardRaw ? convertTcgdexToCardData(tcgCardRaw) : null;
 
       if (tcgCard && tcgCard.supertype) {

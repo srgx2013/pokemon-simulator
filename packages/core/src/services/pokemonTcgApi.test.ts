@@ -110,7 +110,7 @@ describe('adapter-driven cache', () => {
   it('serves a second fetch of the same card from the adapter cache without hitting the network', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => ({ data: [{ id: 'sv6-128', name: 'Dreepy', supertype: 'Pokémon' }] }),
+      json: async () => ({ data: [{ id: 'sv6-128', name: 'Dreepy', supertype: 'Pokémon', number: '128' }] }),
     });
 
     const first = await fetchCard(adapter, 'Dreepy', 'TWM', '128');
@@ -123,7 +123,9 @@ describe('adapter-driven cache', () => {
   });
 
   it('serves a card directly seeded in the adapter cache (cache-first)', async () => {
-    const key = 'dreepy_twm_128';
+    // Cache keys keep the set code as typed (e.g. 'TWM'), matching the key
+    // format fetchCard itself computes.
+    const key = 'dreepy_TWM_128';
     const cached = {
       [key]: { cards: [{ id: 'sv6-128', name: 'Dreepy', supertype: 'Pokémon' }], timestamp: Date.now() },
     };
@@ -136,14 +138,14 @@ describe('adapter-driven cache', () => {
   });
 
   it('refetches when the cached entry is older than the 24h TTL', async () => {
-    const key = 'dreepy_twm_128';
+    const key = 'dreepy_TWM_128';
     const stale = {
       [key]: { cards: [{ id: 'sv6-128', name: 'Dreepy', supertype: 'Pokémon' }], timestamp: Date.now() - 25 * 60 * 60 * 1000 },
     };
     const seeded = createInMemoryStorage({ 'pokemon_tcg_cache': JSON.stringify(stale) });
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => ({ data: [{ id: 'sv6-128', name: 'Dreepy', supertype: 'Pokémon' }] }),
+      json: async () => ({ data: [{ id: 'sv6-128', name: 'Dreepy', supertype: 'Pokémon', number: '128' }] }),
     });
 
     await fetchCard(seeded, 'Dreepy', 'TWM', '128');
@@ -154,13 +156,13 @@ describe('adapter-driven cache', () => {
   it('stores fetched results under the pokemon_tcg_cache key', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => ({ data: [{ id: 'sv6-128', name: 'Dreepy', supertype: 'Pokémon' }] }),
+      json: async () => ({ data: [{ id: 'sv6-128', name: 'Dreepy', supertype: 'Pokémon', number: '128' }] }),
     });
 
     await fetchCard(adapter, 'Dreepy', 'TWM', '128');
 
     const cache = JSON.parse(adapter.dump()['pokemon_tcg_cache']!);
-    expect(cache['dreepy_twm_128']?.cards[0]?.id).toBe('sv6-128');
+    expect(cache['dreepy_TWM_128']?.cards[0]?.id).toBe('sv6-128');
   });
 
   it('tcgdex fallback caches through the tcgdex_cache key', async () => {
