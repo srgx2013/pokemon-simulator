@@ -130,6 +130,7 @@ function EditPokemonSheet({
   discardPile,
   attachedCounts,
   onHp,
+  onAddDamage,
   onAddEnergy,
   onRemoveEnergy,
   onSetStatus,
@@ -143,6 +144,8 @@ function EditPokemonSheet({
   /** Side-wide attached energy counts (the energy pool is shared across the side). */
   attachedCounts: Record<string, number>;
   onHp: (hp: number) => void;
+  /** Adds (+10) or removes (-10, clamped at 0) damage counters via core addDamage. */
+  onAddDamage: (delta: number) => void;
   onAddEnergy: (key: string) => void;
   onRemoveEnergy: (key: string) => void;
   onSetStatus: (status: StatusCondition) => void;
@@ -172,6 +175,19 @@ function EditPokemonSheet({
                 </Pressable>
                 <Text style={styles.hpValue}>{pokemon.currentHp}</Text>
                 <Pressable style={styles.hpBtn} onPress={() => onHp(pokemon.currentHp + 10)}>
+                  <Text style={styles.hpBtnText}>+10</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={styles.editRow}>
+              <Text style={styles.editLabel}>Daño</Text>
+              <View style={styles.hpControls}>
+                <Pressable style={styles.hpBtn} onPress={() => onAddDamage(-10)} disabled={pokemon.damage === 0}>
+                  <Text style={styles.hpBtnText}>-10</Text>
+                </Pressable>
+                <Text style={styles.hpValue}>{pokemon.damage}</Text>
+                <Pressable style={styles.hpBtn} onPress={() => onAddDamage(10)}>
                   <Text style={styles.hpBtnText}>+10</Text>
                 </Pressable>
               </View>
@@ -387,6 +403,7 @@ export function GameBoard() {
   const clearActivePokemon = store(s => s.clearActivePokemon);
   const clearBenchPokemon = store(s => s.clearBenchPokemon);
   const updatePokemonHp = store(s => s.updatePokemonHp);
+  const addDamage = store(s => s.addDamage);
   const addEnergy = store(s => s.addEnergy);
   const removeEnergy = store(s => s.removeEnergy);
   const setStatus = store(s => s.setStatus);
@@ -562,6 +579,7 @@ export function GameBoard() {
           discardPile={sideState(editing.side).discardPile}
           attachedCounts={computeAttachedCounts(sideState(editing.side))}
           onHp={hp => updatePokemonHp(editing.side, editing.id, hp)}
+          onAddDamage={delta => addDamage(editing.side, editing.id, delta)}
           onAddEnergy={key => addEnergy(editing.side, editing.id, key)}
           onRemoveEnergy={key => removeEnergy(editing.side, editing.id, key)}
           onSetStatus={status => setStatus(editing.side, editing.id, status)}
