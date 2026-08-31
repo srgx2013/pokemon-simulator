@@ -34,3 +34,4 @@ dist-ssr
 # coach-server runtime artifacts
 scripts/coach-inbox/
 scripts/coach-outbox/
+.gentle-ai-instance
