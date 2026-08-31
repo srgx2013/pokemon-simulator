@@ -19,7 +19,8 @@
     "coach": "node scripts/coach-server.ts",
     "coach:remote": "COACH_HOST=0.0.0.0 node scripts/coach-server.ts",
     "dev:remote": "npm run dev:remote -w @pokemon-simulator/web",
-    "update-cards": "node scripts/fetch-cards.ts"
+    "update-cards": "node scripts/fetch-cards.ts",
+    "build:mobile": "npm run export -w @pokemon-simulator/mobile"
   },
   "dependencies": {
     "react": "^19.2.4",
