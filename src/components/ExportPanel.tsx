@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { useGameStore } from '../store/gameStore';
 
 // URL del coach server local. Para acceso remoto vía Tailscale, cambiá a
@@ -53,6 +56,7 @@ export function ExportPanel() {
   const [coachResult, setCoachResult] = useState(initialSession?.coachResult ?? '');
   const [coachId, setCoachId] = useState(initialSession?.coachId ?? '');
   const [coachError, setCoachError] = useState(initialSession?.coachError ?? '');
+  const [showResult, setShowResult] = useState(false);
   const getStateForAI = useGameStore(state => state.getStateForAI);
 
   const copyStateToClipboard = useCallback(async () => {
@@ -144,6 +148,13 @@ export function ExportPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Cuando el analisis termina, abrimos el modal a pantalla completa.
+  useEffect(() => {
+    if (coachStatus === 'done' && coachResult) {
+      setShowResult(true);
+    }
+  }, [coachStatus, coachResult]);
+
   const downloadResult = useCallback(() => {
     if (!coachResult) return;
     const blob = new Blob([coachResult], { type: 'text/markdown;charset=utf-8' });
@@ -161,6 +172,7 @@ export function ExportPanel() {
   const busy = coachStatus === 'sending' || coachStatus === 'pending' || coachStatus === 'checking';
 
   return (
+    <>
     <div className="export-panel">
       <div className="export-header">
         <h3>📋 Exportar Estado</h3>
@@ -204,8 +216,10 @@ export function ExportPanel() {
           </p>
         )}
 
-        {coachStatus === 'done' && (
-          <pre className="markdown-preview">{coachResult}</pre>
+        {coachStatus === 'done' && coachResult && (
+          <button onClick={() => setShowResult(true)} className="import-btn result-open-btn">
+            📖 Ver análisis en pantalla completa
+          </button>
         )}
 
         {coachStatus === 'done' && coachResult && (
@@ -227,5 +241,26 @@ export function ExportPanel() {
         </details>
       </div>
     </div>
+
+    {showResult && coachResult && createPortal(
+      <div className="result-modal-overlay" onClick={() => setShowResult(false)}>
+        <div className="result-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="result-modal-header">
+            <h2>📊 Análisis del coach</h2>
+            <button className="result-modal-close" onClick={() => setShowResult(false)} aria-label="Cerrar">✕</button>
+          </div>
+          <div className="result-modal-body">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{coachResult}</ReactMarkdown>
+          </div>
+          <div className="result-modal-footer">
+            <button onClick={downloadResult} className="import-btn">💾 Descargar .md</button>
+            <button onClick={() => setShowResult(false)} className="import-btn">Cerrar</button>
+          </div>
+        </div>
+      </div>,
+      document.body,
+    )}
+
+    </>
   );
 }
