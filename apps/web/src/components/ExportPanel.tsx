@@ -17,6 +17,13 @@ import type { CoachStatus } from '../lib/coachSession';
 // (e.g. VITE_COACH_URL=http://100.84.33.17:9000 npm run dev:remote).
 const COACH_URL = import.meta.env.VITE_COACH_URL ?? 'http://localhost:9000';
 
+// HTTPS page can't call a local HTTP server (mixed content): on the published
+// site the coach won't connect — run the web locally or use an https tunnel.
+const COACH_BLOCKED_HTTPS =
+  typeof window !== 'undefined' &&
+  window.location.protocol === 'https:' &&
+  COACH_URL.startsWith('http:');
+
 // Persistencia de la sesion del coach para sobrevivir a que el celu mate la
 // app o recargue la SPA. El server ya guarda el resultado para siempre en
 // scripts/coach-outbox/<id>.md; solo falta que el cliente recuerde el id.
@@ -307,10 +314,16 @@ export function ExportPanel() {
           {copied ? '✅ ¡Copiado!' : '📋 Copiar Estado Completo'}
         </button>
 
+        {COACH_BLOCKED_HTTPS && (
+          <p className="export-hint coach-warning">
+            ⚠️ Estás en la web publicada (HTTPS): el navegador bloquea la conexión al coach local (HTTP).
+            Corré la web en local con <code>npm run dev</code> para usar el coach, o configurá un túnel https.
+          </p>
+        )}
         <button
           onClick={analyzeWithCoach}
           className="import-btn"
-          disabled={busy}
+          disabled={busy || COACH_BLOCKED_HTTPS}
         >
           {coachStatus === 'sending' ? '⏳ Enviando al coach...'
             : coachStatus === 'pending' ? '⏳ Esperando al coach...'
@@ -367,7 +380,7 @@ export function ExportPanel() {
           <button
             onClick={sendLogForKeyScenario}
             className="import-btn"
-            disabled={!logText.trim() || keyStatus === 'sending' || keyStatus === 'checking'}
+            disabled={!logText.trim() || keyStatus === 'sending' || keyStatus === 'checking' || COACH_BLOCKED_HTTPS}
           >
             {keyStatus === 'sending' ? '⏳…' : '🔍 Detectar jugada clave'}
           </button>

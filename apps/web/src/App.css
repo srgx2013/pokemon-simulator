@@ -702,3 +702,5 @@ body {
 .export-sub { margin: 1rem 0 0.35rem; font-size: 0.95rem; color: var(--text); }
 .log-input { width: 100%; min-height: 90px; box-sizing: border-box; padding: 0.55rem; margin-top: 0.4rem; background: var(--surface, #10151f); color: var(--text); border: 1px solid var(--border, #2a3550); border-radius: 6px; font-family: monospace; font-size: 0.82rem; resize: vertical; }
 .export-row { display: flex; gap: 0.4rem; margin-top: 0.5rem; flex-wrap: wrap; }
+
+.coach-warning { border: 1px solid #8a5f00; background: rgba(255, 180, 0, 0.08); padding: 0.5rem; border-radius: 6px; font-size: 0.85rem; }
