@@ -17,12 +17,17 @@ import type { CoachStatus } from '../lib/coachSession';
 // (e.g. VITE_COACH_URL=http://100.84.33.17:9000 npm run dev:remote).
 const COACH_URL = import.meta.env.VITE_COACH_URL ?? 'http://localhost:9000';
 
-// HTTPS page can't call a local HTTP server (mixed content): on the published
-// site the coach won't connect — run the web locally or use an https tunnel.
-const COACH_BLOCKED_HTTPS =
-  typeof window !== 'undefined' &&
-  window.location.protocol === 'https:' &&
-  COACH_URL.startsWith('http:');
+// HTTPS page can't call a local HTTP server (mixed content): the coach URL is
+// configurable at runtime (stored in localStorage) — paste an https tunnel URL
+// (cloudflared) to use the coach from the published site.
+const DEFAULT_COACH_URL = COACH_URL;
+const initialCoachUrl = (): string => {
+  try {
+    return window.localStorage.getItem('coachUrl') ?? DEFAULT_COACH_URL;
+  } catch {
+    return DEFAULT_COACH_URL;
+  }
+};
 
 // Persistencia de la sesion del coach para sobrevivir a que el celu mate la
 // app o recargue la SPA. El server ya guarda el resultado para siempre en
@@ -37,6 +42,12 @@ export function ExportPanel() {
   const [coachId, setCoachId] = useState('');
   const [coachError, setCoachError] = useState('');
   const [showResult, setShowResult] = useState(false);
+  const [coachUrl, setCoachUrl] = useState<string>(initialCoachUrl);
+  const coachBlocked = typeof window !== 'undefined' && window.location.protocol === 'https:' && coachUrl.startsWith('http:');
+  const saveCoachUrl = (u: string) => {
+    setCoachUrl(u);
+    try { window.localStorage.setItem('coachUrl', u); } catch { /* ignore */ }
+  };
   const [logText, setLogText] = useState('');
   const [keyStatus, setKeyStatus] = useState<'idle' | 'sending' | 'pending' | 'checking' | 'error'>('idle');
   const [keyId, setKeyId] = useState('');
@@ -79,7 +90,7 @@ export function ExportPanel() {
     setCoachId('');
     try {
       const markdown = getStateForAI();
-      const res = await fetch(`${COACH_URL}/analyze`, {
+      const res = await fetch(`${coachUrl}/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ markdown }),
@@ -102,7 +113,7 @@ export function ExportPanel() {
     if (!target) return;
     setCoachStatus('checking');
     try {
-      const r = await fetch(`${COACH_URL}/result/${target}`);
+      const r = await fetch(`${coachUrl}/result/${target}`);
       const d = await r.json();
       if (d.status === 'done') {
         setCoachResult(d.result);
@@ -220,7 +231,7 @@ export function ExportPanel() {
     setKeyError('');
     setKeyResult(null);
     try {
-      const res = await fetch(`${COACH_URL}/analyze`, {
+      const res = await fetch(`${coachUrl}/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ markdown: logText, agent: 'key-scenario' }),
@@ -240,7 +251,7 @@ export function ExportPanel() {
     setKeyStatus('checking');
     setKeyError('');
     try {
-      const r = await fetch(`${COACH_URL}/result/${keyId}`);
+      const r = await fetch(`${coachUrl}/result/${keyId}`);
       const d = await r.json();
       if (d.status === 'done') {
         let parsed: any = null;
@@ -314,16 +325,25 @@ export function ExportPanel() {
           {copied ? '✅ ¡Copiado!' : '📋 Copiar Estado Completo'}
         </button>
 
-        {COACH_BLOCKED_HTTPS && (
+        <label className="export-sub">
+          URL del coach (o túnel https):{' '}
+          <input
+            className="coach-url-input"
+            value={coachUrl}
+            onChange={(e) => saveCoachUrl(e.target.value)}
+            spellCheck={false}
+          />
+        </label>
+        {coachBlocked && (
           <p className="export-hint coach-warning">
-            ⚠️ Estás en la web publicada (HTTPS): el navegador bloquea la conexión al coach local (HTTP).
-            Corré la web en local con <code>npm run dev</code> para usar el coach, o configurá un túnel https.
+            ⚠️ La URL del coach es HTTP y estás en HTTPS: el navegador bloquea la conexión.
+            Pegá un túnel https (cloudflared) o corré la web en local (<code>npm run dev</code>).
           </p>
         )}
         <button
           onClick={analyzeWithCoach}
           className="import-btn"
-          disabled={busy || COACH_BLOCKED_HTTPS}
+          disabled={busy || coachBlocked}
         >
           {coachStatus === 'sending' ? '⏳ Enviando al coach...'
             : coachStatus === 'pending' ? '⏳ Esperando al coach...'
@@ -380,7 +400,7 @@ export function ExportPanel() {
           <button
             onClick={sendLogForKeyScenario}
             className="import-btn"
-            disabled={!logText.trim() || keyStatus === 'sending' || keyStatus === 'checking' || COACH_BLOCKED_HTTPS}
+            disabled={!logText.trim() || keyStatus === 'sending' || keyStatus === 'checking' || coachBlocked}
           >
             {keyStatus === 'sending' ? '⏳…' : '🔍 Detectar jugada clave'}
           </button>
