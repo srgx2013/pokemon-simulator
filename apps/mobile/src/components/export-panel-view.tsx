@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { generateImportPrompt, generateLogPrompt } from '@pokemon-simulator/core/services/promptGenerator';
+import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
 import { useStorage } from '@/hooks/useStorage';
 import { buildExportMarkdown, importStateText } from '@/lib/importExport';
@@ -52,6 +53,15 @@ export function ExportPanelView() {
     await copyText(text);
     setPromptCopied(kind);
     setTimeout(() => setPromptCopied(null), 2500);
+  };
+
+  const handlePaste = async () => {
+    try {
+      const t = await Clipboard.getStringAsync();
+      if (t) setImportText(t.trim());
+    } catch {
+      Alert.alert('Error', 'No se pudo leer el portapapeles.');
+    }
   };
 
   const handleImport = () => {
@@ -226,14 +236,13 @@ export function ExportPanelView() {
               </Pressable>
             </View>
             <TextInput
-              style={styles.importInput}
-              multiline
-              placeholder={'{\n  "turn": 1,\n  "player1": {}\n}'}
-              placeholderTextColor="#9FB2C8"
-              value={importText}
-              onChangeText={setImportText}
-            />
-            {importError && importError.length > 0 && (
+                  style={styles.importInput}
+                  multiline
+                  editable={false}
+                  placeholder={'(vacío — tocá Pegar)'}
+                  placeholderTextColor="#9FB2C8"
+                  value={importText}
+                />            {importError && importError.length > 0 && (
               <View style={styles.errorBox}>
                 {importError.map((e, i) => (
                   <Text key={i} style={styles.errorText}>
@@ -242,6 +251,15 @@ export function ExportPanelView() {
                 ))}
               </View>
             )}
+            <View style={styles.rowButtons}>
+              <Pressable style={styles.shareBtn} onPress={() => setImportText('')} disabled={!importText.trim()}>
+                <Text style={styles.shareBtnText}>🗑 Borrar</Text>
+              </Pressable>
+              <Pressable style={styles.shareBtn} onPress={handlePaste}>
+                <Text style={styles.shareBtnText}>📋 Pegar</Text>
+              </Pressable>
+            </View>
+            
             <Pressable
               style={[styles.loadBtn, !importText.trim() && styles.loadBtnDisabled]}
               onPress={handleImport}

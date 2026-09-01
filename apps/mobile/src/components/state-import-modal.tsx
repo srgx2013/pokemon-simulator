@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { importStateText } from '@/lib/importExport';
 import type { DeckPreset, GameState } from '@pokemon-simulator/core/types';
 
@@ -22,6 +23,16 @@ export function StateImportModal({ visible, onClose, onImported, player1Deck, pl
   const [text, setText] = useState('');
   const [importing, setImporting] = useState(false);
   const [errors, setErrors] = useState<string[] | null>(null);
+
+  const handlePaste = async () => {
+    if (importing) return;
+    try {
+      const t = await Clipboard.getStringAsync();
+      if (t) setText(t.trim());
+    } catch {
+      Alert.alert('Error', 'No se pudo leer el portapapeles.');
+    }
+  };
 
   const handleImport = () => {
     if (!text.trim() || importing) return;
@@ -56,21 +67,31 @@ export function StateImportModal({ visible, onClose, onImported, player1Deck, pl
           </View>
 
           <Text style={styles.hint}>
-            Pegá el JSON exportado por la web o por esta app. Al importar, el tablero se carga con el estado
-            restaurado.
+            Usá los botones: primero copiá el JSON en otro lado, pegá acá con &quot;Pegar&quot; y luego importá. (El
+            campo es de solo lectura para que el teclado no tape la vista.)
           </Text>
 
           <TextInput
             style={styles.input}
             multiline
-            placeholder="Pegá el JSON acá…"
+            editable={false}
+            placeholder="(vacío — tocá Pegar)"
             placeholderTextColor="#7B8794"
             value={text}
-            onChangeText={setText}
-            editable={!importing}
-            autoCapitalize="none"
-            autoCorrect={false}
           />
+
+          <View style={styles.rowButtons}>
+            <Pressable
+              style={[styles.actionBtn, !text.trim() && styles.importBtnDisabled]}
+              onPress={() => setText('')}
+              disabled={!text.trim()}
+            >
+              <Text style={styles.actionBtnText}>🗑 Borrar</Text>
+            </Pressable>
+            <Pressable style={styles.actionBtn} onPress={handlePaste} disabled={importing}>
+              <Text style={styles.actionBtnText}>📋 Pegar</Text>
+            </Pressable>
+          </View>
 
           {errors && (
             <ScrollView style={styles.errorsBox} nestedScrollEnabled>
@@ -151,6 +172,23 @@ const styles = StyleSheet.create({
     color: '#F87171',
     fontSize: 13,
     marginBottom: 4,
+  },
+  rowButtons: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+  },
+  actionBtn: {
+    flex: 1,
+    backgroundColor: '#1E2A44',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  actionBtnText: {
+    color: '#F5F7FA',
+    fontSize: 14,
+    fontWeight: '600',
   },
   importBtn: {
     backgroundColor: '#3B82F6',
