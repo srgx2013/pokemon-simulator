@@ -1,0 +1,22 @@
+{
+  "name": "@pokemon-simulator/core",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/types/index.ts",
+    "./store": "./src/store/gameStore.ts",
+    "./storage": "./src/storage/types.ts",
+    "./data/decks": "./src/data/decks.ts",
+    "./data/cards.generated": "./src/data/cards.generated.ts",
+    "./services/pokemonTcgApi": "./src/services/pokemonTcgApi.ts",
+    "./services/stateExporter": "./src/services/stateExporter.ts",
+    "./services/stateImporter": "./src/services/stateImporter.ts",
+    "./services/promptGenerator": "./src/services/promptGenerator.ts"
+  },
+  "dependencies": {
+    "zustand": "^5.0.12",
+    "uuid": "^13.0.0"
+  }
+}

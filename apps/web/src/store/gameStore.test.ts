@@ -11,7 +11,7 @@ vi.stubGlobal('localStorage', {
   get length() { return Object.keys(store).length; },
   key: (_: number) => null,
 });
-import type { DeckPreset } from '../types';
+import type { DeckPreset } from '@pokemon-simulator/core/types';
 
 
 // Total: 2 pokemon + 1 trainer + 2 energies = 5 cards

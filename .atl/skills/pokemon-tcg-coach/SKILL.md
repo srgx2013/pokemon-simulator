@@ -91,3 +91,4 @@ Output rules:
 - TCG Player — How to Sequence Correctly: https://www.tcgplayer.com/content/article/How-to-Sequence-Correctly-In-The-Pok%C3%A9mon-TCG/
 - TCG Stacked (ES) — Prize Mapping: https://www.tcgstacked.com/es/pokemon/fundamentals/prize-mapping
 - PrizeMap.app (practice): https://prizemap.app/
+- Local card rulings (verified): references/card-rulings.md — Gladion's Final Battle, Dipplin / Festival Lead, apple-deck synergy.

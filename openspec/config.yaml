@@ -1,0 +1,66 @@
+project: pokemon-simulator
+description: >-
+  Pokémon TCG scenario simulator: build battlefield states, export them as
+  markdown for AI analysis and as JSON for re-import (screenshot -> AI -> JSON ->
+  board). Currently a React 19 + Vite web app with a Cloudflare Worker deploy;
+  being ported to React Native + Expo (iOS/Android) sharing the existing
+  TypeScript core.
+stack:
+  language: TypeScript (5.9, strict, verbatimModuleSyntax, erasableSyntaxOnly)
+  framework: React 19.2 (react-dom)
+  build: Vite 8 (@vitejs/plugin-react, tsc -b)
+  state: Zustand 5 (src/store/gameStore.ts)
+  platform: web (Vite SPA) + Cloudflare Workers (@cloudflare/vite-plugin, wrangler 4)
+  package_manager: npm (package-lock.json) with bun available (bun.lock + bun scripts for coach/fetch-cards)
+  source_layout:
+    src/types/index.ts: shared domain types (cards, attacks, abilities, energy)
+    src/store/: Zustand store (game state, autosave)
+    src/services/: stateExporter (markdown), stateImporter (JSON),
+      promptGenerator, pokemonTcgApi (fetch + localStorage cache)
+    src/data/: card data + deck presets
+    src/components/: React DOM components (BattleField, ScenarioEditor,
+      ExportPanel, PokemonCard)
+    scripts/: bun scripts (coach-server.ts, fetch-cards.ts)
+  tsconfig: solution-style root references tsconfig.app.json + tsconfig.node.json
+  lint: ESLint 9 flat config (js recommended, typescript-eslint recommended,
+    react-hooks, react-refresh) via `npm run lint`
+testing:
+  runner: vitest 4
+  test_command: npm test
+  test_command_full: vitest run
+  test_command_watch: npm run test:watch
+  config: vite.config.ts -> test { globals: true, environment: node,
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'] }
+  test_location: colocated next to source (src/store/gameStore.test.ts,
+    src/services/*.test.ts, src/data/decks.test.ts)
+  test_count: 7 test files
+  strict_tdd: true
+  strict_tdd_rationale: >-
+    Project already has a meaningful test suite (store, services, data) with
+    mocking patterns (vi.stubGlobal for localStorage, fake timers where needed).
+    Strict TDD (tests-first, red-green-refactor) is appropriate: every change to
+    core logic must ship with tests run via `npm test`.
+conventions:
+  - TypeScript strict mode with noUnusedLocals/noUnusedParameters; keep type-only
+    imports (verbatimModuleSyntax).
+  - Core domain logic must stay platform-agnostic: it is shared with the
+    React Native + Expo port.
+  - localStorage is used directly in store/services/main/ExportPanel (autosave,
+    API cache, data versioning). For the RN port, isolate persistence behind an
+    abstraction (src/store has a safe-get try/catch pattern already; tests stub
+    localStorage).
+  - Tests colocated in src/**/*.test.ts, node environment, no DOM helpers.
+  - Deploy: `bun run build && wrangler deploy` (Cloudflare Worker, SPA
+    not_found_handling, nodejs_compat flag).
+  - Project skills available: pokemon-tcg-rules and pokemon-tcg-coach
+    (see .atl/skills/) — load them for any game-rule or strategy-related work.
+  - docs/ files are written in Spanish (coach-server.md,
+    validacion-reconocimiento-imagen.md); generated code/artifacts remain in
+    English.
+  - Branch workflow: work happens on main; use conventional commits.
+migration_context:
+  target: React Native + Expo (iOS/Android)
+  shared_core: src/types, src/services, src/data, src/store logic
+  needs_porting: src/components (React DOM), src/App.tsx, main.tsx,
+    localStorage persistence -> async storage abstraction,
+    window/document usage (App.tsx, main.tsx, BattleField.tsx, ExportPanel.tsx)

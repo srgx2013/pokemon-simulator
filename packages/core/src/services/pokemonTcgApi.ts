@@ -4,6 +4,7 @@
 import type { EnergyType } from '../types';
 
 const API_BASE = 'https://api.pokemontcg.io/v2';
+const FETCH_TIMEOUT_MS = 8000;
 const CACHE_KEY = 'pokemon_tcg_cache';
 
 // Mapeo de códigos de set comunes -> API set IDs
@@ -32,6 +33,9 @@ export const setCodeMap: Record<string, string> = {
   'ASC': 'me2pt5',  // Ascended Heroes
   'PER': 'me3',     // Perfect Order
   'CHA': 'me4',     // Chaos Rising
+  'PBL': 'me5',     // Pitch Black
+  'POR': 'me3',     // Perfect Order (Meowth ex, Poké Pad)
+  'CRI': 'me4',     // Chaos Rising (Patrat, Prism Tower)
   // --- Crown Zenith ---
   'CRZ': 'swsh12pt5',   // Crown Zenith
   'CRZGG': 'swsh12pt5gg', // Crown Zenith Galarian Gallery
@@ -84,7 +88,8 @@ export function setCache(key: string, cards: CardData[]): void {
 
 // Buscar carta por nombre y set con reintentos automáticos
 export async function fetchCard(name: string, setCode?: string, number?: string): Promise<CardData | null> {
-  const cacheKey = `${name.toLowerCase()}_${setCode || ''}_${number || ''}`;
+      const normNumber = normalizeCardNumber(number);
+  const cacheKey = `${name.toLowerCase()}_${setCode || ''}_${normNumber || ''}`;
   const cache = getCache();
   
   // Verificar cache (válido por 24 horas)
@@ -102,15 +107,15 @@ export async function fetchCard(name: string, setCode?: string, number?: string)
         const apiSetCode = setCodeMap[setCode.toUpperCase()];
         if (apiSetCode) {
           query += ` set.id:${apiSetCode}`;
-          if (number) query += ` number:${number}`;
-        } else if (number) {
+          if (normNumber) query += ` number:${normNumber}`;
+        } else if (normNumber) {
           query += ` number:${number}`;
         }
-      } else if (number) {
+      } else if (normNumber) {
         query += ` number:${number}`;
       }
       
-      const response = await fetch(`${API_BASE}/cards?q=${query}`);
+      const response = await fetch(`${API_BASE}/cards?q=${query}`, { signal: (AbortSignal as any).timeout(FETCH_TIMEOUT_MS) });
       
       if (!response.ok) {
         // 429 = rate limited, 404 = podría ser rate limit encubierto
@@ -127,8 +132,8 @@ export async function fetchCard(name: string, setCode?: string, number?: string)
       const cards: CardData[] = data.data || [];
       
       let result = cards;
-      if (number) {
-        result = cards.filter(c => c.number === number);
+      if (normNumber) {
+        result = cards.filter(c => c.number === normNumber);
       }
       
       if (result.length > 0) {
@@ -139,7 +144,8 @@ export async function fetchCard(name: string, setCode?: string, number?: string)
     } catch (error) {
       // Solo reintentar en errores recuperables (rate limit, conexión)
       const isRetryable = error instanceof TypeError || 
-        (error instanceof Error && (error.message.includes('429') || error.message.includes('Failed to fetch')));
+        (error instanceof Error && (error.message.includes('429') || error.message.includes('Failed to fetch'))) ||
+        (typeof error === 'object' && error !== null && ((error as any).name === 'AbortError' || (error as any).name === 'TimeoutError'));
       
       if (isRetryable && attempt < maxRetries) {
         const delay = Math.pow(2, attempt) * 1500;
@@ -224,7 +230,7 @@ export async function fetchCardFromTcgdex(name: string): Promise<any | null> {
   try {
     // Paso 1: buscar por nombre exacto para obtener el ID
     const searchUrl = TCGDEX_BASE + '/cards?name=eq:' + encodeURIComponent(name);
-    const searchRes = await fetch(searchUrl);
+    const searchRes = await fetch(searchUrl, { signal: (AbortSignal as any).timeout(FETCH_TIMEOUT_MS) });
     if (!searchRes.ok) return null;
 
     const searchData = await searchRes.json();
@@ -235,7 +241,7 @@ export async function fetchCardFromTcgdex(name: string): Promise<any | null> {
 
     // Paso 2: obtener datos completos por ID
     const cardUrl = TCGDEX_BASE + '/cards/' + cardId;
-    const cardRes = await fetch(cardUrl);
+    const cardRes = await fetch(cardUrl, { signal: (AbortSignal as any).timeout(FETCH_TIMEOUT_MS) });
     if (!cardRes.ok) return null;
 
     const cardData = await cardRes.json();
@@ -397,6 +403,14 @@ export function normalizeEnergyCost(cost?: string[]): EnergyType[] {
     Colorless: 'normal',
   };
   return (cost || []).map((c) => map[c] ?? (c.toLowerCase() as EnergyType));
+}
+
+// Normaliza el numero de carta para matching de claves:
+// quita ceros iniciales en numeros puramente numericos ("039" -> "39")
+// pero deja intactos codigos no numericos ("TG05", "HR", "SM53").
+export function normalizeCardNumber(num?: string) {
+  if (!num) return num;
+  return /^\d+$/.test(num) ? String(parseInt(num, 10)) : num;
 }
 
 // Convertir formato API a formato interno

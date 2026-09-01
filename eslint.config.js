@@ -20,4 +20,12 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // Node-runnable scripts and the shared core package run outside any
+    // browser (core is DOM-free by design); surface Node globals for them.
+    files: ['scripts/**/*.ts', 'packages/**/*.ts'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
 ])
