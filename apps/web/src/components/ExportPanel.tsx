@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useGameStore } from '../lib/gameStore';
+import { importStateFromJson } from '@pokemon-simulator/core/services/stateImporter';
 import {
   loadCoachSession,
   saveCoachSession,
@@ -29,7 +30,14 @@ export function ExportPanel() {
   const [coachId, setCoachId] = useState('');
   const [coachError, setCoachError] = useState('');
   const [showResult, setShowResult] = useState(false);
+  const [logText, setLogText] = useState('');
+  const [keyStatus, setKeyStatus] = useState<'idle' | 'sending' | 'pending' | 'checking' | 'error'>('idle');
+  const [keyId, setKeyId] = useState('');
+  const [keyError, setKeyError] = useState('');
+  const [keyResult, setKeyResult] = useState<any>(null);
+  const [keyShow, setKeyShow] = useState(false);
   const getStateForAI = useGameStore(state => state.getStateForAI);
+  const gameState = useGameStore(state => state.gameState);
 
   const copyStateToClipboard = useCallback(async () => {
     const stateText = getStateForAI();
@@ -52,6 +60,12 @@ export function ExportPanel() {
   }, [getStateForAI]);
 
   const analyzeWithCoach = useCallback(async () => {
+    const hasBoard = !!(gameState?.player1?.active || gameState?.player2?.active);
+    if (!hasBoard) {
+      setCoachError('El tablero está vacío: armá la partida (activos/bench) antes de analizar.');
+      setCoachStatus('error');
+      return;
+    }
     setCoachStatus('sending');
     setCoachError('');
     setCoachResult('');
@@ -74,7 +88,7 @@ export function ExportPanel() {
       setCoachStatus('error');
       setCoachError('No se pudo conectar al coach server. ¿Está corriendo? (npm run coach)');
     }
-  }, [getStateForAI]);
+  }, [getStateForAI, gameState]);
 
   const checkCoachResult = useCallback(async (id?: string) => {
     const target = id ?? coachId;
@@ -139,6 +153,125 @@ export function ExportPanel() {
       setShowResult(true);
     }
   }, [coachStatus, coachResult]);
+
+  const parseStateJson = (obj: any): any => {
+    if (!obj || typeof obj !== 'object') return null;
+    if (obj.gameState && typeof obj.gameState === 'object') return obj.gameState;
+    if (obj.estadoDelTurno && typeof obj.estadoDelTurno === 'object') return obj.estadoDelTurno;
+    return null;
+  };
+
+  const parseCoachState = (text: string): any => {
+    if (!text) return null;
+    try {
+      const direct = parseStateJson(JSON.parse(text));
+      if (direct) return direct;
+    } catch { /* not plain JSON */ }
+    const m = text.match(/```json\s*([\s\S]*?)\s*```/);
+    if (m) {
+      try {
+        const fromBlock = parseStateJson(JSON.parse(m[1]));
+        if (fromBlock) return fromBlock;
+      } catch { /* skip malformed fenced block */ }
+    }
+    return null;
+  };
+
+  const loadResultAsBoard = useCallback(() => {
+    const state = parseCoachState(coachResult);
+    if (!state) {
+      setCoachError('El resultado de Pi no contiene JSON de estado para cargar.');
+      return;
+    }
+    const st = useGameStore.getState();
+    const res = importStateFromJson(JSON.stringify(state), {
+      player1: st.player1Deck,
+      player2: st.player2Deck,
+    });
+    if (!res.ok) {
+      setCoachError((res.errors ?? ['no se pudo importar']).join('\n'));
+      return;
+    }
+    st.importGameState(res.gameState);
+    setShowResult(false);
+    setCoachError('');
+    alert('Tablero creado: el estado del resultado se cargó.');
+  }, [coachResult]);
+
+  const handlePasteLog = async () => {
+    try {
+      const t = await navigator.clipboard.readText();
+      if (t) setLogText(t.trim());
+    } catch {
+      setKeyError('No se pudo leer el portapapeles.');
+    }
+  };
+
+  const sendLogForKeyScenario = async () => {
+    if (!logText.trim() || keyStatus === 'sending') return;
+    setKeyStatus('sending');
+    setKeyError('');
+    setKeyResult(null);
+    try {
+      const res = await fetch(`${COACH_URL}/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markdown: logText, agent: 'key-scenario' }),
+      });
+      const data = await res.json();
+      if (!data.id) throw new Error('Sin id');
+      setKeyId(data.id);
+      setKeyStatus('pending');
+    } catch {
+      setKeyStatus('error');
+      setKeyError('No se pudo conectar al coach server.');
+    }
+  };
+
+  const checkKeyResult = async () => {
+    if (!keyId || keyStatus === 'checking') return;
+    setKeyStatus('checking');
+    setKeyError('');
+    try {
+      const r = await fetch(`${COACH_URL}/result/${keyId}`);
+      const d = await r.json();
+      if (d.status === 'done') {
+        let parsed: any = null;
+        try { parsed = JSON.parse(d.result ?? ''); } catch { parsed = null; }
+        setKeyResult(parsed && parsed.escenarioClave ? parsed : { escenarioClave: null, raw: d.result });
+        setKeyShow(true);
+        setKeyStatus('idle');
+      } else if (d.status === 'pending') {
+        setKeyStatus('pending');
+      } else {
+        setKeyStatus('error');
+        setKeyError(d.error ?? 'No se encontró el resultado del coach.');
+      }
+    } catch {
+      setKeyStatus('error');
+      setKeyError('No se pudo consultar el resultado en el coach server.');
+    }
+  };
+
+  const loadKeyScenario = () => {
+    const esc = keyResult?.escenarioClave;
+    if (!esc?.estadoDelTurno) {
+      setKeyError('No hay estado del turno clave para cargar.');
+      return;
+    }
+    const st = useGameStore.getState();
+    const res = importStateFromJson(JSON.stringify(esc.estadoDelTurno), {
+      player1: st.player1Deck,
+      player2: st.player2Deck,
+    });
+    if (!res.ok) {
+      setKeyError((res.errors ?? ['no se pudo importar']).join('\n'));
+      return;
+    }
+    st.importGameState(res.gameState);
+    setKeyShow(false);
+    alert(`Jugada clave cargada: turno ${esc.turno} restaurado en el tablero.`);
+  };
 
   const downloadResult = useCallback(() => {
     if (!coachResult) return;
@@ -220,6 +353,35 @@ export function ExportPanel() {
           El markdown incluye: estado del tablero, manos visibles, descartes,
           contenido de ambos mazos, ataques disponibles, evoluciones posibles, y más.
         </p>
+        <h4 className="export-sub">🎯 Jugada clave desde el log</h4>
+        <textarea
+          className="log-input"
+          value={logText}
+          onChange={(e) => setLogText(e.target.value)}
+          placeholder="(pegá el log de la partida)"
+          rows={4}
+        />
+        <div className="export-row">
+          <button onClick={() => setLogText('')} disabled={!logText.trim()} className="import-btn">🗑 Borrar</button>
+          <button onClick={handlePasteLog} className="import-btn">📋 Pegar log</button>
+          <button
+            onClick={sendLogForKeyScenario}
+            className="import-btn"
+            disabled={!logText.trim() || keyStatus === 'sending' || keyStatus === 'checking'}
+          >
+            {keyStatus === 'sending' ? '⏳…' : '🔍 Detectar jugada clave'}
+          </button>
+        </div>
+        {keyStatus === 'pending' && (
+          <p className="export-hint">
+            Log enviado (id {keyId}). Pi determina el escenario clave — tocá &quot;Ver escenario&quot; cuando esté.
+          </p>
+        )}
+        {keyId && (keyStatus === 'pending' || keyStatus === 'idle') && (
+          <button onClick={checkKeyResult} className="import-btn">🔎 Ver escenario clave</button>
+        )}
+        {keyError && <div className="import-error">{keyError}</div>}
+
         <details className="preview-toggle">
           <summary>👁️ Vista previa del markdown</summary>
           <pre className="markdown-preview">{stateMarkdown}</pre>
@@ -227,7 +389,31 @@ export function ExportPanel() {
       </div>
     </div>
 
-    {showResult && coachResult && createPortal(
+        {keyShow && createPortal(
+          <div className="result-modal-overlay" onClick={() => setKeyShow(false)}>
+            <div className="result-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="result-modal-header">
+                <h2>🎯 Escenario clave</h2>
+                <button className="result-modal-close" onClick={() => setKeyShow(false)} aria-label="Cerrar">✕</button>
+              </div>
+              <div className="result-modal-body">
+                <h3>
+                  {keyResult?.escenarioClave
+                    ? `Turno ${keyResult.escenarioClave.turno} — ${keyResult.escenarioClave.jugador === 'player2' ? 'rival' : 'vos'}`
+                    : 'Sin escenario detectado'}
+                </h3>
+                <p>{keyResult?.escenarioClave?.jugada ?? 'El log no fue procesado.'}</p>
+                <p>{keyResult?.escenarioClave?.porQueDecidioLaPartida ?? keyResult?.raw ?? ''}</p>
+                {keyResult?.escenarioClave?.estadoDelTurno && (
+                  <button onClick={loadKeyScenario} className="import-btn">⚔️ Cargar turno y analizar en el tablero</button>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+        {showResult && coachResult && createPortal(
       <div className="result-modal-overlay" onClick={() => setShowResult(false)}>
         <div className="result-modal" onClick={(e) => e.stopPropagation()}>
           <div className="result-modal-header">
@@ -238,6 +424,9 @@ export function ExportPanel() {
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{coachResult}</ReactMarkdown>
           </div>
           <div className="result-modal-footer">
+            {parseCoachState(coachResult) && (
+              <button onClick={loadResultAsBoard} className="import-btn">📥 Crear tablero desde el resultado</button>
+            )}
             <button onClick={downloadResult} className="import-btn">💾 Descargar .md</button>
             <button onClick={() => setShowResult(false)} className="import-btn">Cerrar</button>
           </div>
