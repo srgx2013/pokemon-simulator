@@ -348,3 +348,73 @@ RED run: 4 failed / 13 passed (182 existing green). GREEN run: **17 files / 217 
 - `parseDeckListWithApi` on a networked device performs real fetches with the existing 8s timeout + backoff; while imports resolve cache-first (E-4), a fully offline *first* import of an unknown card waits on the timeout path (graceful degradation per G-2 — UI shows progress and the import either resolves from local DB/heuristics or surfaces an error, never crashes).
 - No direct `addDamage` clamping in the store — the sheet disables the minus button at `damage === 0` to avoid negative counters (web leaves damage unclamped too; UI-level guard only).
 - Lint baseline debt (83 pre-existing web errors) unchanged; mobile additions were not linted (`expo lint` config off by default) — same posture as slice 3.
+
+---
+
+# Apply Progress — `expo-mobile-app` (PR 5 / Slice 5: S2.12, S2.13, S5.1–S5.3)
+
+> **Phase:** sdd-apply · **Change:** expo-mobile-app · **Store:** openspec (file-based)
+> **Delivery:** stacked-to-main; PR 5 = Slice 5 (verification sweep, evidence-led); branch `chore/expo-acceptance` off `8ac887f` (PR 4 head / `chore/expo-mobile-screens`)
+> **Mode:** strict TDD active (`npm test`, vitest) — S2.12 is the only behavior change this slice and landed RED→GREEN (evidence below); S2.13/S5.1–S5.3 are verification/evidence tasks (TDD n/a per tasks.md).
+> **Baseline:** 8ac887f, clean tree; 17 files / 217 tests green.
+
+## Structured status consumed
+
+Session artifact store = `openspec` (file-based); no `openspec/state.yaml` exists (store is artifact-files only) → status resolved per the SDD status-contract fallback: `applyState: in-progress → completed for Slice 5`; `dependencies`: none unmet (S2.12 → S2.13 → S5.1 → S5.3 chain; S5.2 evidence produced but its on-device legs are deferred by environment, see below); `blockedReasons`: none; `actionContext`: no workspace-planning mode, no `allowedEditRoots` restriction, edits confined to the repo. Skill resolution: `paths-injected` (work-unit-commits, chained-pr, branch-pr SKILL.md paths read before implementation).
+
+## Completed tasks (checkbox updates in `tasks.md` — all verified by re-read)
+
+| Task | Persisted checkbox | Evidence |
+|------|--------------------|----------|
+| S2.12 REFACTOR ExportPanel coach session → web adapter (7th key) | `- [x]` (commit ec6d526) | RED→GREEN: new `apps/web/src/lib/coachSession.test.ts` failed `Cannot find module './coachSession'` → GREEN 7/7; `ExportPanel.tsx` now persists through `webStorage` (zero direct `localStorage`); grep: only real web `localStorage` site = `apps/web/src/lib/storage.ts` |
+| S2.13 core barrel + DOM-free boundary scan | `- [x]` (commit 728ccf6) | Barrel verified (types, storage contract, store factory/hydrate/migrateData, state fns, importer, promptGenerator; `pokemonTcgApi`/`decks` NOT at root — R7). Scans: `localStorage\|AsyncStorage` in core non-test sources → **1 hit, the contract doc comment** in `storage/types.ts:5`; `window\|document` → **0 hits**; `react-dom\|react-markdown\|remark-gfm` → **0 hits** |
+| S5.1 Web parity + deploy smoke | `- [x]` (commit 728ccf6) | `npm run build` → `dist/assets/index-BZDi2R11.js` (2,855.31 kB / gzip 398.83 kB), CSS hash unchanged (`index-ZIy-rXDp.css`); JS hash changed from slice-3/4 baseline (`index-BRTt3H1-.js`) — expected, S2.12 is the final web behavior change; `wrangler deploy --dry-run` validated config + 9 dist assets and exited (NO deploy performed); localStorage scan + no-duplicate-store scan clean |
+| S5.2 Mobile acceptance matrix | `- [ ]` (evidence-deferred note appended) | `acceptance-matrix.md` written; **no iOS runtime / no Android emulator in this environment** (proven: `xcrun simctl list runtimes` empty, no `emulator`/`adb`/`ANDROID_HOME`) → device legs marked DEFERRED (sdd-verify/CI device lane); unit+bundle legs verified (50 mobile unit tests + Hermes export at HEAD) |
+| S5.3 Spec traceability + aggregate gate | `- [x]` (commit 728ccf6) | `traceability-report.md`: all **32 enumerated** spec requirements (A-1…N-1) mapped to evidence; aggregate gate green (18 files / 224 tests, `tsc -b` clean, build green, dry-run smoke, Hermes export); R1–R11 disposition recorded |
+
+## TDD Cycle Evidence (strict TDD — RED → GREEN for S2.12)
+
+| Cycle | RED (failing) | GREEN (passing) | Refactor |
+|-------|---------------|-----------------|----------|
+| Coach session via web adapter (7th key, SC7) | `apps/web/src/lib/coachSession.test.ts` — suite failed `Cannot find module './coachSession'` (1 file / 0 tests) | `coachSession.test.ts` 7/7 (key binding to `STORAGE_KEYS.coachSession`, null-on-missing, persist, round-trip, clear, idempotent clear, malformed JSON tolerance); full `npm test` 18 files / 224 tests | `coachSession.ts` over `webStorage` (async, C-2) with legacy try/catch tolerance; `ExportPanel.tsx` restores the session asynchronously on mount and re-checks restored pending ids explicitly (behavior parity with the old synchronous restore); `checkCoachResult(id?)` accepts the restored id |
+
+## Files changed (4 work-unit commits on `chore/expo-acceptance`)
+
+1. `b80535a test(web): add RED coach session persistence tests through the web adapter` — `apps/web/src/lib/coachSession.test.ts` (new, 7 tests; localStorage mock per the existing `storage.test.ts` convention)
+2. `ec6d526 refactor(web): route ExportPanel coach session through the web adapter (S2.12)` — `apps/web/src/lib/coachSession.ts` (new: `COACH_SESSION_KEY = STORAGE_KEYS.coachSession`, `CoachSession`/`CoachStatus`, async `load/save/clearCoachSession`), `apps/web/src/components/ExportPanel.tsx` (direct `localStorage` removed; async restore effect + explicit pending re-check)
+3. `728ccf6 docs(expo): add acceptance matrix, traceability report and completion checkboxes (S2.13, S5.1–S5.3)` — `openspec/changes/expo-mobile-app/acceptance-matrix.md` (new), `traceability-report.md` (new), `tasks.md` (S2.12/S2.13/S5.1/S5.3 `[x]`; S5.2 stays `[ ]` + evidence-deferred note)
+4. this commit — `openspec/changes/expo-mobile-app/apply-progress.md` (slice-5 section appended)
+
+## Test commands run (all green at HEAD)
+
+- `npm test` — **18 files, 224 tests pass** (baseline 17/217; +7 slice-5 coach-session tests)
+- `npx tsc -b` (root solution: core + web + mobile) — clean (after fixing an `onClick={checkCoachResult}` event/param type clash surfaced by the new optional-id signature)
+- `npm run build` (web) — `✓ built`: `index-BZDi2R11.js` 2,855.31 kB (gzip 398.83) + `index-ZIy-rXDp.css` (unchanged), 307 modules
+- `wrangler deploy --dry-run` (from `apps/web`) — config + 9 dist assets validated, "`--dry-run`: exiting now"; **no deploy** (no approval); wrangler 4.123.0 IS logged in (OAuth) so an approved deploy is possible
+- `npm run export -w @pokemon-simulator/mobile -- --dump-sourcemap` — iOS Hermes bundle `entry-2496099f….hbc` (3.3MB) + 9.7MB sourcemap at HEAD; sourcemap contains `cards.generated` (B-4)
+- Scans (S2.13/S5.1/SC7/B-3): core zero code refs to storage/DOM; web direct `localStorage` only in `lib/storage.ts` (comments + test mocks elsewhere); `apps/web/src/store` absent (B-2); "coach" in mobile sources = 1 comment only (D-3)
+- Runtime absence proofs: `xcrun simctl list runtimes` → empty; `xcrun simctl list devices available` → empty; `emulator`/`adb`/`sdkmanager` not on PATH; `ANDROID_HOME` unset
+
+## Deviation log (from design.md / tasks.md — deliberate, none silent)
+
+1. **`coachSession.ts` imports `STORAGE_KEYS` from the root barrel, not `@pokemon-simulator/core/storage`.** The web `vite.config.ts` alias maps `@pokemon-simulator/core` → `packages/core/src` (directory); a *value* import from `…/core/storage` therefore resolved to the `storage/` directory (rolldown: "Is a directory") while vitest (node resolution via package `exports`) was fine. Root barrel re-exports `STORAGE_KEYS` (`export * from './storage/types'`), so the root import is byte-equivalent and the build resolves. The test still imports the contract key via the subpath under vitest. Latent alias limitation surfaced by the first web value-import from a core subpath; recorded for future web imports.
+2. **S5.3 report maps 32 requirements, not 20.** Tasks.md says "all 20 spec requirements (A-1…N-1)"; the actual spec enumerates 32 numbered items (A×5, B×4, C×6, D×4, E×4, F×3, G×2, H×3, N×1). The report covers all 32.
+3. **S5.2 checkbox intentionally left `- [ ]`** — honesty over checkbox-farming: no iOS runtime and no Android emulator exist in this environment (proven above), so runtime boot cannot be genuinely verified. The acceptance matrix documents what is verified (unit+bundle) vs what requires device/CI; the row carries an evidence-deferred note.
+4. **`wrangler deploy` not executed** — dry-run only, per delegation instructions ("do NOT actually deploy without explicit approval"). Credentials ARE present; an approved real deploy smoke remains a one-command follow-up.
+5. **`ExportPanel` restore effect changed shape** (async instead of `useMemo`+sync read): the old synchronous `loadCoachSession` on first render became an async adapter read (C-2) — the mount effect now sets state from the restored session and re-checks pending ids with the explicit restored id (old code relied on the pre-render closure). Net observable behavior identical.
+
+## Remaining tasks (out of scope for PR 5 — exact unchecked lines)
+
+- `- [ ] S5.2 — Mobile acceptance matrix …` (evidence-deferred note appended: device legs REQUIRE sdd-verify/CI device lane — no runtime in this environment)
+- Parent-owned lifecycle gates (bounded review, workload guard, sdd-verify, sdd-archive) remain `- [ ]` — preserved byte-for-byte.
+
+## Workload / PR boundary
+
+- **PR 5 = Slice 5 (S2.12, S2.13, S5.1–S5.3)**, 4 commits; branch `chore/expo-acceptance` from `8ac887f`. Hand-written diff ≈ 320 lines (92 code/test + ~230 evidence/docs); within the 400-line guideline (forecast: "~100 + manual OK"). All slices 1–4 remain untouched by this slice except the two web files the SDD plan scoped to S2.12 (web behavior change completes at this PR) and the change artifacts.
+- After this PR: `sdd-verify` (spec.md 32 requirements + acceptance matrix, with this task list + apply-progress as inputs) then `sdd-archive`. S5.2 device legs + N-1 measurement + web manual runtime smoke are the verify inputs that need a device-capable environment.
+
+## Risks / residual
+
+- **Runtime acceptance remains unverified** (E-2 kill-and-relaunch, G-2 airplane-mode, N-1 cold-start, D-1/D-2 device legs): environment has zero simulator/emulator runtime. Handed to `sdd-verify`/CI device lane with the full evidence ledger in `acceptance-matrix.md`.
+- Web manual runtime parity (start → reload restore → import/export → scenario) unchanged from slice 2 posture: unit + build evidence only, dev-mode smoke recommended for `sdd-verify`.
+- Lint baseline debt (83 pre-existing web errors) unchanged; not introduced by this slice.

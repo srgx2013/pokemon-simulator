@@ -4,20 +4,32 @@
     "tsBuildInfoFile": "../../node_modules/.tmp/tsconfig.mobile.tsbuildinfo",
     "allowJs": true,
     "resolveJsonModule": true,
-    "lib": ["ES2023", "DOM", "ESNext"],
+    "lib": [
+      "ES2023",
+      "DOM",
+      "ESNext"
+    ],
     "module": "preserve",
-    "customConditions": ["react-native"],
+    "customConditions": [
+      "react-native"
+    ],
     "paths": {
-      "@/*": ["./src/*"],
-      "@/assets/*": ["./assets/*"],
-      "@pokemon-simulator/core": ["../../packages/core/src/index.ts"],
-      "@pokemon-simulator/core/*": ["../../packages/core/src/*"]
+      "@/*": [
+        "./src/*"
+      ],
+      "@/assets/*": [
+        "./assets/*"
+      ],
+      "@pokemon-simulator/core": [
+        "../../packages/core/src/index.ts"
+      ],
+      "@pokemon-simulator/core/*": [
+        "../../packages/core/src/*"
+      ]
     }
   },
   "include": [
     "**/*.ts",
-    "**/*.tsx",
-    ".expo/types/**/*.ts",
-    "expo-env.d.ts"
+    "**/*.tsx"
   ]
 }

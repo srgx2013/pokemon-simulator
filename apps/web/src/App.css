@@ -698,3 +698,7 @@ body {
 .result-modal-body table { border-collapse: collapse; width: 100%; margin: 0.7rem 0; font-size: 0.9rem; }
 .result-modal-body th, .result-modal-body td { border: 1px solid var(--border); padding: 0.4rem 0.6rem; text-align: left; }
 .result-modal-body th { background: var(--primary); color: var(--accent); }
+
+.export-sub { margin: 1rem 0 0.35rem; font-size: 0.95rem; color: var(--text); }
+.log-input { width: 100%; min-height: 90px; box-sizing: border-box; padding: 0.55rem; margin-top: 0.4rem; background: var(--surface, #10151f); color: var(--text); border: 1px solid var(--border, #2a3550); border-radius: 6px; font-family: monospace; font-size: 0.82rem; resize: vertical; }
+.export-row { display: flex; gap: 0.4rem; margin-top: 0.5rem; flex-wrap: wrap; }

@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { generateImportPrompt, generateLogPrompt } from '@pokemon-simulator/core/services/promptGenerator';
+import * as Clipboard from 'expo-clipboard';
+import { useRouter } from 'expo-router';
 import { useStorage } from '@/hooks/useStorage';
 import { buildExportMarkdown, importStateText } from '@/lib/importExport';
 import { copyText, shareText } from '@/lib/clipboard';
@@ -15,6 +17,7 @@ import { copyText, shareText } from '@/lib/clipboard';
  */
 export function ExportPanelView() {
   const { store } = useStorage();
+  const router = useRouter();
   const gameState = store(s => s.gameState);
   const player1Deck = store(s => s.player1Deck);
   const player2Deck = store(s => s.player2Deck);
@@ -52,6 +55,143 @@ export function ExportPanelView() {
     setTimeout(() => setPromptCopied(null), 2500);
   };
 
+  const handlePaste = async () => {
+    try {
+      const t = await Clipboard.getStringAsync();
+      if (t) setImportText(t.trim());
+    } catch {
+      Alert.alert('Error', 'No se pudo leer el portapapeles.');
+    }
+  };
+
+  const handlePasteLog = async () => {
+    try {
+      const t = await Clipboard.getStringAsync();
+      if (t) setLogText(t.trim());
+    } catch {
+      Alert.alert('Error', 'No se pudo leer el portapapeles.');
+    }
+  };
+
+  const sendLogForKeyScenario = async () => {
+    if (!logText.trim() || keyStatus === 'sending') return;
+    setKeyStatus('sending');
+    setKeyError(null);
+    setKeyResult(null);
+    try {
+      const res = await fetch(`${coachUrl}/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markdown: logText, agent: 'key-scenario' }),
+      });
+      const data = await res.json();
+      if (!data.id) throw new Error('sin id');
+      setKeyId(data.id);
+      setKeyStatus('pending');
+    } catch {
+      setKeyStatus('error');
+      setKeyError(`No se pudo conectar al coach en ${coachUrl}. ¿Ya lo tenés corriendo?`);
+    }
+  };
+
+  const checkKeyResult = async () => {
+    if (!keyId || keyStatus === 'checking') return;
+    setKeyStatus('checking');
+    setKeyError(null);
+    try {
+      const r = await fetch(`${coachUrl}/result/${keyId}`);
+      const d = await r.json();
+      if (d.status === 'done') {
+        let parsed: any = null;
+        try {
+          parsed = JSON.parse(d.result ?? '');
+        } catch {
+          parsed = null;
+        }
+        setKeyResult(parsed && parsed.escenarioClave ? parsed : { escenarioClave: null, raw: d.result });
+        setKeyModalOpen(true);
+        setKeyStatus('idle');
+      } else if (d.status === 'pending') {
+        setKeyStatus('pending');
+      } else {
+        setKeyStatus('error');
+        setKeyError(d.error ?? 'No se encontró el resultado del coach.');
+      }
+    } catch {
+      setKeyStatus('error');
+      setKeyError(`No se pudo consultar el resultado en ${coachUrl}.`);
+    }
+  };
+
+  const parseStateJson = (obj: any): any => {
+    if (!obj || typeof obj !== 'object') return null;
+    if (obj.gameState && typeof obj.gameState === 'object') return obj.gameState;
+    if (obj.estadoDelTurno && typeof obj.estadoDelTurno === 'object') return obj.estadoDelTurno;
+    return null;
+  };
+
+  const parseCoachState = (text: string): any => {
+    if (!text) return null;
+    try {
+      const parsed = JSON.parse(text);
+      const direct = parseStateJson(parsed);
+      if (direct) return direct;
+    } catch {
+      // not plain JSON — look for a fenced ```json block
+    }
+    const m = text.match(/```json\s*([\s\S]*?)\s*```/);
+    if (m) {
+      try {
+        const parsed = JSON.parse(m[1]);
+        const fromBlock = parseStateJson(parsed);
+        if (fromBlock) return fromBlock;
+      } catch {
+        // ignore malformed fenced block
+      }
+    }
+    return null;
+  };
+
+  const loadCoachResultAsBoard = () => {
+    const state = parseCoachState(coachResult);
+    if (!state) {
+      Alert.alert('Sin estado', 'El resultado de Pi no contiene JSON de estado para cargar.');
+      return;
+    }
+    const result = importStateText(JSON.stringify(state), {
+      player1: player1Deck,
+      player2: player2Deck,
+    });
+    if (!result.ok) {
+      Alert.alert('Error', (result.errors ?? ['no se pudo importar']).join('\n'));
+      return;
+    }
+    importGameState(result.gameState);
+    setCoachModalOpen(false);
+    router.replace('/');
+    Alert.alert('Tablero creado', 'El estado del resultado se cargó en el tablero.');
+  };
+
+  const loadKeyScenario = () => {
+    const esc = keyResult?.escenarioClave;
+    if (!esc?.estadoDelTurno) {
+      Alert.alert('Error', 'No hay estado del turno clave para cargar.');
+      return;
+    }
+    const result = importStateText(JSON.stringify(esc.estadoDelTurno), {
+      player1: player1Deck,
+      player2: player2Deck,
+    });
+    if (!result.ok) {
+      Alert.alert('Error', (result.errors ?? ['no se pudo importar']).join('\n'));
+      return;
+    }
+    importGameState(result.gameState);
+    setKeyModalOpen(false);
+    router.replace('/');
+    Alert.alert('Jugada clave cargada', `Turno ${esc.turno} restaurado en el tablero.`);
+  };
+
   const handleImport = () => {
     const result = importStateText(importText, { player1: player1Deck, player2: player2Deck });
     if (result.ok) {
@@ -59,9 +199,74 @@ export function ExportPanelView() {
       setImportText('');
       setImportError(null);
       setShowImport(false);
+      router.replace('/');
       Alert.alert('Escenario importado', 'El estado se restauró en el tablero.');
     } else {
       setImportError(result.errors);
+    }
+  };
+
+  const [coachUrl, setCoachUrl] = useState('http://192.168.1.75:9000');
+  const [coachStatus, setCoachStatus] = useState<'idle' | 'sending' | 'pending' | 'checking' | 'done' | 'error'>('idle');
+  const [coachError, setCoachError] = useState<string | null>(null);
+  const [coachId, setCoachId] = useState<string | null>(null);
+  const [coachResult, setCoachResult] = useState('');
+  const [coachModalOpen, setCoachModalOpen] = useState(false);
+  const [logText, setLogText] = useState('');
+  const [keyStatus, setKeyStatus] = useState<'idle' | 'sending' | 'pending' | 'checking' | 'error'>('idle');
+  const [keyError, setKeyError] = useState<string | null>(null);
+  const [keyId, setKeyId] = useState<string | null>(null);
+  const [keyResult, setKeyResult] = useState<any>(null);
+  const [keyModalOpen, setKeyModalOpen] = useState(false);
+
+  const sendToCoach = async () => {
+    const hasBoard = !!(gameState?.player1?.active || gameState?.player2?.active);
+    if (!hasBoard) {
+      Alert.alert(
+        'El tablero está vacío',
+        'Armá la partida (activos/bench) antes de enviar a Pi — si no, el análisis sale vacío.',
+      );
+      return;
+    }
+    setCoachStatus('sending');
+    setCoachError(null);
+    setCoachResult('');
+    try {
+      const res = await fetch(`${coachUrl}/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markdown }),
+      });
+      const data = await res.json();
+      if (!data.id) throw new Error('sin id del coach');
+      setCoachId(data.id);
+      setCoachStatus('pending');
+    } catch {
+      setCoachStatus('error');
+      setCoachError(`No se pudo conectar al coach en ${coachUrl}. ¿Está corriendo con coach:remote en la Mac?`);
+    }
+  };
+
+  const checkCoachResult = async () => {
+    if (!coachId) return;
+    setCoachStatus('checking');
+    setCoachError(null);
+    try {
+      const r = await fetch(`${coachUrl}/result/${coachId}`);
+      const d = await r.json();
+      if (d.status === 'done') {
+        setCoachResult(d.result ?? '');
+        setCoachStatus('done');
+        setCoachModalOpen(true);
+      } else if (d.status === 'pending') {
+        setCoachStatus('pending');
+      } else {
+        setCoachStatus('error');
+        setCoachError(d.error ?? 'No se encontró el resultado del coach.');
+      }
+    } catch {
+      setCoachStatus('error');
+      setCoachError(`No se pudo consultar el resultado en ${coachUrl}.`);
     }
   };
 
@@ -101,10 +306,139 @@ export function ExportPanelView() {
         </Text>
       </View>
 
+      <View style={styles.promptBox}>
+        <Text style={styles.promptTitle}>Paso 3 — enviar a Pi (misma red)</Text>
+        <TextInput
+          style={styles.coachInput}
+          value={coachUrl}
+          onChangeText={setCoachUrl}
+          autoCapitalize="none"
+          autoCorrect={false}
+          placeholder="http://<ip-de-tu-mac>:9000"
+          placeholderTextColor="#9FB2C8"
+        />
+        <View style={styles.rowButtons}>
+          <Pressable
+            style={styles.shareBtn}
+            onPress={sendToCoach}
+            disabled={coachStatus === 'sending' || coachStatus === 'checking'}
+          >
+            <Text style={styles.shareBtnText}>
+              {coachStatus === 'sending' ? '⏳ Enviando…' : '📡 Enviar a Pi'}
+            </Text>
+          </Pressable>
+          <Pressable style={styles.shareBtn} onPress={checkCoachResult} disabled={!coachId}>
+            <Text style={styles.shareBtnText}>🔍 Ver resultado</Text>
+          </Pressable>
+        </View>
+        {coachStatus === 'pending' && (
+          <Text style={styles.promptHint}>
+            Enviado (id {coachId}). Pi lo analiza en la Mac — cuando esté listo tocá
+            &quot;Ver resultado&quot;.
+          </Text>
+        )}
+        {coachStatus === 'done' && (
+          <Pressable style={styles.promptBtn} onPress={() => setCoachModalOpen(true)}>
+            <Text style={styles.promptBtnText}>🧠 Ver análisis de Pi</Text>
+          </Pressable>
+        )}
+        {coachError && <Text style={styles.errorText}>{coachError}</Text>}
+      </View>
+
+      <View style={styles.promptBox}>
+        <Text style={styles.promptTitle}>Paso 4 — jugada clave desde el log</Text>
+        <TextInput
+          style={styles.coachInput}
+          multiline
+          editable={false}
+          placeholder={'(pegá el log de la partida)'}
+          placeholderTextColor="#9FB2C8"
+          value={logText}
+        />
+        <View style={styles.rowButtons}>
+          <Pressable style={styles.shareBtn} onPress={() => setLogText('')} disabled={!logText.trim()}>
+            <Text style={styles.shareBtnText}>🗑 Borrar</Text>
+          </Pressable>
+          <Pressable style={styles.shareBtn} onPress={handlePasteLog}>
+            <Text style={styles.shareBtnText}>📋 Pegar log</Text>
+          </Pressable>
+          <Pressable
+            style={styles.shareBtn}
+            onPress={sendLogForKeyScenario}
+            disabled={!logText.trim() || keyStatus === 'sending' || keyStatus === 'checking'}
+          >
+            <Text style={styles.shareBtnText}>{keyStatus === 'sending' ? '⏳…' : '🔍 Detectar jugada clave'}</Text>
+          </Pressable>
+        </View>
+        {keyStatus === 'pending' && (
+          <Text style={styles.promptHint}>
+            Log enviado (id {keyId}). Pi determina el escenario clave — tocá &quot;Ver escenario&quot; cuando esté.
+          </Text>
+        )}
+        {keyId && (keyStatus === 'pending' || keyStatus === 'idle') && (
+          <Pressable style={styles.promptBtn} onPress={checkKeyResult}>
+            <Text style={styles.promptBtnText}>🔎 Ver escenario clave</Text>
+          </Pressable>
+        )}
+        {keyError && <Text style={styles.errorText}>{keyError}</Text>}
+      </View>
+
       <Text style={styles.previewTitle}>👁️ Vista previa del markdown</Text>
       <Text selectable style={styles.preview}>
         {markdown}
       </Text>
+
+      <Modal visible={keyModalOpen} transparent animationType="slide" onRequestClose={() => setKeyModalOpen(false)}>
+        <View style={styles.overlay}>
+          <View style={styles.modal}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>🎯 Escenario clave</Text>
+              <Pressable onPress={() => setKeyModalOpen(false)} hitSlop={8}>
+                <Text style={styles.modalClose}>✕</Text>
+              </Pressable>
+            </View>
+            <ScrollView style={styles.resultScroll}>
+              <Text style={styles.promptTitle}>
+                {keyResult?.escenarioClave
+                  ? `Turno ${keyResult.escenarioClave.turno} — ${keyResult.escenarioClave.jugador === 'player2' ? 'rival' : 'vos'}`
+                  : 'Sin escenario detectado'}
+              </Text>
+              <Text style={styles.promptHint}>{keyResult?.escenarioClave?.jugada ?? 'El log no fue procesado.'}</Text>
+              <Text selectable style={styles.preview}>
+                {keyResult?.escenarioClave?.porQueDecidioLaPartida ?? keyResult?.raw ?? ''}
+              </Text>
+              {keyResult?.escenarioClave?.estadoDelTurno && (
+                <Pressable style={styles.loadBtn} onPress={loadKeyScenario}>
+                  <Text style={styles.loadBtnText}>⚔️ Cargar turno y analizar en el tablero</Text>
+                </Pressable>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={coachModalOpen} transparent animationType="slide" onRequestClose={() => setCoachModalOpen(false)}>
+        <View style={styles.overlay}>
+          <View style={styles.modal}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>🧠 Análisis de Pi</Text>
+              <Pressable onPress={() => setCoachModalOpen(false)} hitSlop={8}>
+                <Text style={styles.modalClose}>✕</Text>
+              </Pressable>
+            </View>
+            <ScrollView style={styles.resultScroll}>
+              <Text selectable style={styles.preview}>
+                {coachResult || '(sin contenido)'}
+              </Text>
+              {parseCoachState(coachResult) && (
+                <Pressable style={styles.loadBtn} onPress={loadCoachResultAsBoard}>
+                  <Text style={styles.loadBtnText}>📥 Crear tablero desde el resultado (JSON)</Text>
+                </Pressable>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={showImport} transparent animationType="slide" onRequestClose={() => setShowImport(false)}>
         <View style={styles.overlay}>
@@ -116,14 +450,13 @@ export function ExportPanelView() {
               </Pressable>
             </View>
             <TextInput
-              style={styles.importInput}
-              multiline
-              placeholder={'{\n  "turn": 1,\n  "player1": {}\n}'}
-              placeholderTextColor="#9FB2C8"
-              value={importText}
-              onChangeText={setImportText}
-            />
-            {importError && importError.length > 0 && (
+                  style={styles.importInput}
+                  multiline
+                  editable={false}
+                  placeholder={'(vacío — tocá Pegar)'}
+                  placeholderTextColor="#9FB2C8"
+                  value={importText}
+                />            {importError && importError.length > 0 && (
               <View style={styles.errorBox}>
                 {importError.map((e, i) => (
                   <Text key={i} style={styles.errorText}>
@@ -132,6 +465,15 @@ export function ExportPanelView() {
                 ))}
               </View>
             )}
+            <View style={styles.rowButtons}>
+              <Pressable style={styles.shareBtn} onPress={() => setImportText('')} disabled={!importText.trim()}>
+                <Text style={styles.shareBtnText}>🗑 Borrar</Text>
+              </Pressable>
+              <Pressable style={styles.shareBtn} onPress={handlePaste}>
+                <Text style={styles.shareBtnText}>📋 Pegar</Text>
+              </Pressable>
+            </View>
+            
             <Pressable
               style={[styles.loadBtn, !importText.trim() && styles.loadBtnDisabled]}
               onPress={handleImport}
@@ -266,6 +608,20 @@ const styles = StyleSheet.create({
     color: '#9FB2C8',
     fontSize: 16,
     fontWeight: '700',
+  },
+  coachInput: {
+    backgroundColor: '#0B1220',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#22304A',
+    color: '#F5F7FA',
+    fontSize: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 10,
+  },
+  resultScroll: {
+    maxHeight: '72%',
   },
   importInput: {
     backgroundColor: '#0B1220',

@@ -1,3 +1,5 @@
+import '@/lib/crypto-shim';
+
 import { DarkTheme, DefaultTheme, Tabs, ThemeProvider } from 'expo-router';
 import { ActivityIndicator, StyleSheet, Text, useColorScheme, View } from 'react-native';
 
