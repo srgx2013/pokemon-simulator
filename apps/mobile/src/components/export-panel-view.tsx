@@ -375,9 +375,9 @@ export function ExportPanelView() {
             Log enviado (id {keyId}). Pi determina el escenario clave — tocá &quot;Ver escenario&quot; cuando esté.
           </Text>
         )}
-        {keyId && (keyStatus === 'pending' || keyStatus === 'idle') && (
-          <Pressable style={styles.promptBtn} onPress={checkKeyResult}>
-            <Text style={styles.promptBtnText}>🔎 Ver escenario clave</Text>
+        {keyId && (
+          <Pressable style={styles.promptBtn} onPress={checkKeyResult} disabled={keyStatus === 'checking'}>
+            <Text style={styles.promptBtnText}>{keyStatus === 'checking' ? '⏳…' : '🔎 Ver escenario clave'}</Text>
           </Pressable>
         )}
         {keyError && <Text style={styles.errorText}>{keyError}</Text>}

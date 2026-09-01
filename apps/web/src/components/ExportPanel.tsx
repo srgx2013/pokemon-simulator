@@ -377,8 +377,10 @@ export function ExportPanel() {
             Log enviado (id {keyId}). Pi determina el escenario clave — tocá &quot;Ver escenario&quot; cuando esté.
           </p>
         )}
-        {keyId && (keyStatus === 'pending' || keyStatus === 'idle') && (
-          <button onClick={checkKeyResult} className="import-btn">🔎 Ver escenario clave</button>
+        {keyId && (
+          <button onClick={checkKeyResult} className="import-btn" disabled={keyStatus === 'checking'}>
+            🔎 Ver escenario clave
+          </button>
         )}
         {keyError && <div className="import-error">{keyError}</div>}
 
