@@ -189,3 +189,14 @@ The verify-phase CRITICAL (S5.2 unchecked, no runtime) is partially resolved by 
 - **Bug found & fixed on-device** (branch `fix/expo-dedupe-react`, **PR 8**): dual React 19.2.3/19.2.4 in the monorepo → two React dispatchers → hook-order crash on every relaunch. Fix: react/react-dom → 19.2.4 (tree unifies: `@expo/metro-runtime` hoists, `expo-router/_ctx-shared` resolves) + `reactCompiler`/`typedRoutes` disabled in `app.json`. Post-fix relaunch clean; `npm test` still 224 pass.
 - **Remaining DEFERRED** (documented in `acceptance-matrix.md`; no UI automation / no Android toolchain here): Android emulator lane (E-2/SC3), tab & UI interaction smoke, seeded-state visual restore, G-2 airplane-mode, N-1 cold-start measurement. These keep the aggregate verdict at **conditional-pass**: implementation + iOS device boot/relaunch verified; Android + interaction legs require a device/CI lane.
 - **Status of former W-2 (lint):** unchanged — 96 pre-existing errors, tracked debt, not introduced by this change.
+
+---
+
+## Addendum 2 — Android device-lane run (2026-08-31) — closes the S5.2 Android leg
+
+- **Toolchain installed**: JDK 21 (Temurin, user-local `~/Library/Java/JavaVirtualMachines`), Android SDK (`~/Library/Android`): cmdline-tools, platform-tools, build-tools 36.0.0, platform android-36, emulator, system-images android-36 google_apis arm64-v8a.
+- **AVD**: `pkm-avd` (Pixel 7, ARM64) booted; `sys.boot_completed=1`.
+- **Build**: `npx expo prebuild --platform android` + `./gradlew assembleDebug` → **BUILD SUCCESSFUL (492 tasks, 32m first build)**, APK `com.srgx2013.pokemonsimulator`.
+- **On-device**: APK installed (`adb install`), Metro serves the JS bundle, app runs (`Running "main"`), **E-2 force-stop → relaunch: PASS, zero JS errors** (verified twice after a cold emulator restart that cured a PMS corruption from the initial system crash).
+- **Emulator prebuilt `android/` dir is gitignored** (Expo convention); `app.json` gained `android.package` and the mobile `package.json` scripts switched to `expo run:android`/`run:ios` (native-build mode).
+- **Remaining DEFERRED** (unchanged, needs UI automation): tab interaction smoke, seeded-state visual restore, G-2 airplane-mode, N-1 cold-start timing — on both platforms.
