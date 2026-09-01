@@ -1,18 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { useGameStore, hasActiveGame } from './gameStore';
+import { createGameStore, hasActiveGame } from './gameStore';
+import { hydrate, DATA_VERSION } from './hydrate';
+import { createInMemoryStorage } from '../storage/types';
+import type { DeckPreset, GameState } from '../types';
 
-// Mock localStorage
-const store: Record<string, string> = {};
-vi.stubGlobal('localStorage', {
-  getItem: (key: string) => store[key] ?? null,
-  setItem: (key: string, value: string) => { store[key] = value; },
-  removeItem: (key: string) => { delete store[key]; },
-  clear: () => { Object.keys(store).forEach(k => delete store[k]); },
-  get length() { return Object.keys(store).length; },
-  key: (_: number) => null,
-});
-import type { DeckPreset } from '@pokemon-simulator/core/types';
-
+// One in-memory adapter + one store per test, hydrated before each test
+// (strict TDD migration from the module-level store + localStorage stub: the
+// store no longer captures storage at module load — C-3).
+let adapter: ReturnType<typeof createInMemoryStorage>;
+let store: ReturnType<typeof createGameStore>;
 
 // Total: 2 pokemon + 1 trainer + 2 energies = 5 cards
 // After startGame: 7 hand requires more cards, so we need at least 13 (7+6 prizes)
@@ -58,53 +54,47 @@ const deckWithSpecials: DeckPreset = {
   ],
 };
 
-beforeEach(() => {
-  // Reset the store state
-  useGameStore.setState({
-    gameState: {
-      player1: { deck: [], hand: [], discardPile: [], prizes: [], active: null, bench: [] },
-      player2: { deck: [], hand: [], discardPile: [], prizes: [], active: null, bench: [] },
-      currentPlayer: 'player1',
-      turn: 1,
-      phase: 'setup',
-      logs: [],
-      mulligan: { player1: false, player2: false },
-    },
-    selectedScenario: null,
-    scenarios: [],
-    customDecks: [],
-    player1Deck: null,
-    player2Deck: null,
-  });
+beforeEach(async () => {
+  adapter = createInMemoryStorage();
+  store = createGameStore(adapter);
+  await hydrate(store, adapter);
 });
+
+const emptyGameState: GameState = {
+  player1: { deck: [], hand: [], discardPile: [], prizes: [], active: null, bench: [] },
+  player2: { deck: [], hand: [], discardPile: [], prizes: [], active: null, bench: [] },
+  currentPlayer: 'player1',
+  turn: 1,
+  phase: 'setup',
+  logs: [],
+  mulligan: { player1: false, player2: false },
+};
 
 describe('startGame', () => {
   it('carga todas las cartas del mazo al deck pool', () => {
-    const store = useGameStore.getState();
-    store.setPlayer1Deck(fullDeck);
-    store.setPlayer2Deck(fullDeck);
-    store.startGame();
+    store.getState().setPlayer1Deck(fullDeck);
+    store.getState().setPlayer2Deck(fullDeck);
+    store.getState().startGame();
 
-    const { player1 } = useGameStore.getState().gameState;
+    const { player1 } = store.getState().gameState;
     expect(player1.hand).toHaveLength(0);
     expect(player1.prizes).toHaveLength(0);
     expect(player1.deck.length).toBe(60);
   });
 
   it('falla silenciosamente si no hay mazos seleccionados', () => {
-    const store = useGameStore.getState();
-    store.startGame(); // no decks set
+    store.getState().startGame(); // no decks set
 
-    const state = useGameStore.getState().gameState;
+    const state = store.getState().gameState;
     expect(state.phase).toBe('setup'); // unchanged
   });
 
   it('deja mano, premios y descarte vacíos', () => {
-    useGameStore.getState().setPlayer1Deck(fullDeck);
-    useGameStore.getState().setPlayer2Deck(fullDeck);
-    useGameStore.getState().startGame();
+    store.getState().setPlayer1Deck(fullDeck);
+    store.getState().setPlayer2Deck(fullDeck);
+    store.getState().startGame();
 
-    const { player1 } = useGameStore.getState().gameState;
+    const { player1 } = store.getState().gameState;
     expect(player1.hand).toHaveLength(0);
     expect(player1.prizes).toHaveLength(0);
     expect(player1.discardPile).toHaveLength(0);
@@ -112,27 +102,27 @@ describe('startGame', () => {
   });
 
   it('total de cartas en deck suma 60 por jugador', () => {
-    useGameStore.getState().setPlayer1Deck(fullDeck);
-    useGameStore.getState().setPlayer2Deck(fullDeck);
-    useGameStore.getState().startGame();
+    store.getState().setPlayer1Deck(fullDeck);
+    store.getState().setPlayer2Deck(fullDeck);
+    store.getState().startGame();
 
-    const { player1 } = useGameStore.getState().gameState;
+    const { player1 } = store.getState().gameState;
     expect(player1.deck.length).toBe(60);
   });
 
   it('crea cartas de energía con nombre cuando el preset lo tiene', () => {
-    useGameStore.getState().setPlayer1Deck(deckWithSpecials);
-    useGameStore.getState().setPlayer2Deck(deckWithSpecials);
-    useGameStore.getState().startGame();
+    store.getState().setPlayer1Deck(deckWithSpecials);
+    store.getState().setPlayer2Deck(deckWithSpecials);
+    store.getState().startGame();
 
-    const { player1 } = useGameStore.getState().gameState;
+    const { player1 } = store.getState().gameState;
     const allCards = [...player1.hand, ...player1.prizes, ...player1.deck];
-    
+
     // Check there are energy cards with the special names
     const spikyCards = allCards.filter(c => 'name' in c && (c as any).name === 'Spiky Energy');
     const mistCards = allCards.filter(c => 'name' in c && (c as any).name === 'Mist Energy');
     const psychicCards = allCards.filter(c => 'name' in c && (c as any).name?.includes('psychic'));
-    
+
     expect(spikyCards.length + mistCards.length + psychicCards.length).toBe(10);
     expect(spikyCards.length).toBeGreaterThan(0);
     expect(mistCards.length).toBeGreaterThan(0);
@@ -141,9 +131,9 @@ describe('startGame', () => {
 
 describe('setActivePokemon / setBenchPokemon', () => {
   it('establece el Pokémon activo', () => {
-    useGameStore.getState().setPlayer1Deck(fullDeck);
-    useGameStore.getState().setPlayer2Deck(fullDeck);
-    useGameStore.getState().startGame();
+    store.getState().setPlayer1Deck(fullDeck);
+    store.getState().setPlayer2Deck(fullDeck);
+    store.getState().startGame();
 
     const card = {
       name: 'Dreepy', stage: 'basic' as const, hp: 70, type: 'psychic',
@@ -159,9 +149,9 @@ describe('setActivePokemon / setBenchPokemon', () => {
       isActive: true,
     };
 
-    useGameStore.getState().setActivePokemon('player1', instance);
-    
-    const active = useGameStore.getState().gameState.player1.active;
+    store.getState().setActivePokemon('player1', instance);
+
+    const active = store.getState().gameState.player1.active;
     expect(active).not.toBeNull();
     expect(active!.id).toBe('test-id-1');
     expect(active!.isActive).toBe(true);
@@ -177,10 +167,10 @@ describe('setActivePokemon / setBenchPokemon', () => {
       attachedEnergy: [], status: 'none' as const, damage: 0, isActive: true,
     };
 
-    useGameStore.getState().setActivePokemon('player1', instance);
-    useGameStore.getState().clearActivePokemon('player1');
-    
-    expect(useGameStore.getState().gameState.player1.active).toBeNull();
+    store.getState().setActivePokemon('player1', instance);
+    store.getState().clearActivePokemon('player1');
+
+    expect(store.getState().gameState.player1.active).toBeNull();
   });
 
   it('coloca Pokémon en el bench en posición específica', () => {
@@ -193,9 +183,9 @@ describe('setActivePokemon / setBenchPokemon', () => {
       attachedEnergy: [], status: 'none' as const, damage: 0, isActive: false, benchPosition: 2,
     };
 
-    useGameStore.getState().setBenchPokemon('player1', 2, instance);
-    
-    const bench = useGameStore.getState().gameState.player1.bench;
+    store.getState().setBenchPokemon('player1', 2, instance);
+
+    const bench = store.getState().gameState.player1.bench;
     expect(bench[2]).not.toBeNull();
     expect(bench[2]!.id).toBe('test-bench');
     expect(bench[2]!.benchPosition).toBe(2);
@@ -211,10 +201,10 @@ describe('setActivePokemon / setBenchPokemon', () => {
       attachedEnergy: [], status: 'none' as const, damage: 0, isActive: false,
     };
 
-    useGameStore.getState().setBenchPokemon('player1', 0, instance);
-    useGameStore.getState().clearBenchPokemon('player1', 0);
-    
-    expect(useGameStore.getState().gameState.player1.bench[0]).toBeNull();
+    store.getState().setBenchPokemon('player1', 0, instance);
+    store.getState().clearBenchPokemon('player1', 0);
+
+    expect(store.getState().gameState.player1.bench[0]).toBeNull();
   });
 });
 
@@ -224,10 +214,10 @@ describe('addEnergy / removeEnergy', () => {
       id: 'energy-test', card: { name: 'Pokemon', stage: 'basic' as const, hp: 100, type: 'psychic', attacks: [], retreatCost: 1, rarity: 'common' as const },
       currentHp: 100, attachedEnergy: [], status: 'none' as const, damage: 0, isActive: true,
     };
-    useGameStore.getState().setActivePokemon('player1', instance);
-    useGameStore.getState().addEnergy('player1', 'energy-test', 'psychic');
+    store.getState().setActivePokemon('player1', instance);
+    store.getState().addEnergy('player1', 'energy-test', 'psychic');
 
-    expect(useGameStore.getState().gameState.player1.active!.attachedEnergy).toContain('psychic');
+    expect(store.getState().gameState.player1.active!.attachedEnergy).toContain('psychic');
   });
 
   it('agrega energía especial por nombre', () => {
@@ -235,10 +225,10 @@ describe('addEnergy / removeEnergy', () => {
       id: 'special-energy', card: { name: 'Pokemon', stage: 'basic' as const, hp: 100, type: 'psychic', attacks: [], retreatCost: 1, rarity: 'common' as const },
       currentHp: 100, attachedEnergy: [], status: 'none' as const, damage: 0, isActive: true,
     };
-    useGameStore.getState().setActivePokemon('player1', instance);
-    useGameStore.getState().addEnergy('player1', 'special-energy', 'Spiky Energy');
+    store.getState().setActivePokemon('player1', instance);
+    store.getState().addEnergy('player1', 'special-energy', 'Spiky Energy');
 
-    const attached = useGameStore.getState().gameState.player1.active!.attachedEnergy;
+    const attached = store.getState().gameState.player1.active!.attachedEnergy;
     expect(attached).toContain('Spiky Energy');
   });
 
@@ -247,10 +237,10 @@ describe('addEnergy / removeEnergy', () => {
       id: 'remove-test', card: { name: 'Pokemon', stage: 'basic' as const, hp: 100, type: 'psychic', attacks: [], retreatCost: 1, rarity: 'common' as const },
       currentHp: 100, attachedEnergy: ['fire', 'fire', 'psychic'], status: 'none' as const, damage: 0, isActive: true,
     };
-    useGameStore.getState().setActivePokemon('player1', instance);
-    useGameStore.getState().removeEnergy('player1', 'remove-test', 'fire');
+    store.getState().setActivePokemon('player1', instance);
+    store.getState().removeEnergy('player1', 'remove-test', 'fire');
 
-    const attached = useGameStore.getState().gameState.player1.active!.attachedEnergy;
+    const attached = store.getState().gameState.player1.active!.attachedEnergy;
     expect(attached).toEqual(['fire', 'psychic']); // removed one fire
   });
 });
@@ -261,10 +251,10 @@ describe('updatePokemonHp', () => {
       id: 'hp-test', card: { name: 'Pokemon', stage: 'basic' as const, hp: 100, type: 'psychic', attacks: [], retreatCost: 1, rarity: 'common' as const },
       currentHp: 100, attachedEnergy: [], status: 'none' as const, damage: 0, isActive: true,
     };
-    useGameStore.getState().setActivePokemon('player1', instance);
-    useGameStore.getState().updatePokemonHp('player1', 'hp-test', 70);
+    store.getState().setActivePokemon('player1', instance);
+    store.getState().updatePokemonHp('player1', 'hp-test', 70);
 
-    expect(useGameStore.getState().gameState.player1.active!.currentHp).toBe(70);
+    expect(store.getState().gameState.player1.active!.currentHp).toBe(70);
   });
 
   it('nunca baja de 0', () => {
@@ -272,10 +262,10 @@ describe('updatePokemonHp', () => {
       id: 'hp-min', card: { name: 'Pokemon', stage: 'basic' as const, hp: 100, type: 'psychic', attacks: [], retreatCost: 1, rarity: 'common' as const },
       currentHp: 100, attachedEnergy: [], status: 'none' as const, damage: 0, isActive: true,
     };
-    useGameStore.getState().setActivePokemon('player1', instance);
-    useGameStore.getState().updatePokemonHp('player1', 'hp-min', -50);
+    store.getState().setActivePokemon('player1', instance);
+    store.getState().updatePokemonHp('player1', 'hp-min', -50);
 
-    expect(useGameStore.getState().gameState.player1.active!.currentHp).toBe(0);
+    expect(store.getState().gameState.player1.active!.currentHp).toBe(0);
   });
 
   it('nunca supera el HP máximo de la carta', () => {
@@ -283,10 +273,10 @@ describe('updatePokemonHp', () => {
       id: 'hp-max', card: { name: 'Pokemon', stage: 'basic' as const, hp: 100, type: 'psychic', attacks: [], retreatCost: 1, rarity: 'common' as const },
       currentHp: 80, attachedEnergy: [], status: 'none' as const, damage: 0, isActive: true,
     };
-    useGameStore.getState().setActivePokemon('player1', instance);
-    useGameStore.getState().updatePokemonHp('player1', 'hp-max', 999);
+    store.getState().setActivePokemon('player1', instance);
+    store.getState().updatePokemonHp('player1', 'hp-max', 999);
 
-    expect(useGameStore.getState().gameState.player1.active!.currentHp).toBe(100);
+    expect(store.getState().gameState.player1.active!.currentHp).toBe(100);
   });
 });
 
@@ -296,11 +286,11 @@ describe('addDamage', () => {
       id: 'dmg-test', card: { name: 'Pokemon', stage: 'basic' as const, hp: 100, type: 'psychic', attacks: [], retreatCost: 1, rarity: 'common' as const },
       currentHp: 100, attachedEnergy: [], status: 'none' as const, damage: 0, isActive: true,
     };
-    useGameStore.getState().setActivePokemon('player1', instance);
-    useGameStore.getState().addDamage('player1', 'dmg-test', 30);
-    useGameStore.getState().addDamage('player1', 'dmg-test', 20);
+    store.getState().setActivePokemon('player1', instance);
+    store.getState().addDamage('player1', 'dmg-test', 30);
+    store.getState().addDamage('player1', 'dmg-test', 20);
 
-    expect(useGameStore.getState().gameState.player1.active!.damage).toBe(50);
+    expect(store.getState().gameState.player1.active!.damage).toBe(50);
   });
 });
 
@@ -310,30 +300,30 @@ describe('setStatus', () => {
       id: 'status-test', card: { name: 'Pokemon', stage: 'basic' as const, hp: 100, type: 'psychic', attacks: [], retreatCost: 1, rarity: 'common' as const },
       currentHp: 100, attachedEnergy: [], status: 'none' as const, damage: 0, isActive: true,
     };
-    useGameStore.getState().setActivePokemon('player1', instance);
-    useGameStore.getState().setStatus('player1', 'status-test', 'paralyzed');
+    store.getState().setActivePokemon('player1', instance);
+    store.getState().setStatus('player1', 'status-test', 'paralyzed');
 
-    expect(useGameStore.getState().gameState.player1.active!.status).toBe('paralyzed');
+    expect(store.getState().gameState.player1.active!.status).toBe('paralyzed');
   });
 });
 
 describe('setHand / setDeck / setDiscard / setPrizes', () => {
   it('setHand reemplaza la mano', () => {
     const cards = [{ name: 'Card1', type: 'item' as const, description: '', rarity: 'uncommon' as const, id: '1' }];
-    useGameStore.getState().setHand('player1', cards);
-    expect(useGameStore.getState().gameState.player1.hand).toHaveLength(1);
+    store.getState().setHand('player1', cards);
+    expect(store.getState().gameState.player1.hand).toHaveLength(1);
   });
 
   it('setDeck reemplaza el deck', () => {
-    useGameStore.getState().setDeck('player1', [{ name: 'X', type: 'psychic' as const, quantity: 1, id: '1' }]);
-    expect(useGameStore.getState().gameState.player1.deck).toHaveLength(1);
+    store.getState().setDeck('player1', [{ name: 'X', type: 'psychic' as const, quantity: 1, id: '1' }]);
+    expect(store.getState().gameState.player1.deck).toHaveLength(1);
   });
 });
 
 describe('saveScenario / loadScenario', () => {
-  it('guarda y carga un escenario', () => {
+  it('guarda y carga un escenario', async () => {
     // Set up some state
-    useGameStore.setState(s => ({
+    store.setState(s => ({
       gameState: {
         ...s.gameState,
         player1: {
@@ -344,21 +334,29 @@ describe('saveScenario / loadScenario', () => {
       },
     }));
 
-    useGameStore.getState().saveScenario('Test Scenario');
-    
-    const scenarios = useGameStore.getState().scenarios;
+    await store.getState().saveScenario('Test Scenario');
+
+    const scenarios = store.getState().scenarios;
     expect(scenarios).toHaveLength(1);
     expect(scenarios[0].name).toBe('Test Scenario');
     expect(scenarios[0].gameState.phase).toBe('turn');
-    
+
     // Modify state and load back
-    useGameStore.setState(s => ({
+    store.setState(s => ({
       gameState: { ...s.gameState, phase: 'setup' },
     }));
-    expect(useGameStore.getState().gameState.phase).toBe('setup');
-    
-    useGameStore.getState().loadScenario(scenarios[0].id);
-    expect(useGameStore.getState().gameState.phase).toBe('turn');
+    expect(store.getState().gameState.phase).toBe('setup');
+
+    await store.getState().loadScenario(scenarios[0].id);
+    expect(store.getState().gameState.phase).toBe('turn');
+  });
+
+  it('persists saved scenarios through the adapter (F-3)', async () => {
+    await store.getState().saveScenario('Persisted Scenario');
+
+    const persisted = JSON.parse(adapter.dump()['pokemon-scenarios']!);
+    expect(persisted).toHaveLength(1);
+    expect(persisted[0].name).toBe('Persisted Scenario');
   });
 });
 
@@ -395,25 +393,25 @@ describe('placePokemonFromDeck', () => {
       energies: [{ type: 'psychic', quantity: 2 }],
     };
 
-    useGameStore.getState().setPlayer1Deck(deckWithAbilities);
-    useGameStore.getState().setPlayer2Deck(deckWithAbilities);
-    useGameStore.getState().startGame();
+    store.getState().setPlayer1Deck(deckWithAbilities);
+    store.getState().setPlayer2Deck(deckWithAbilities);
+    store.getState().startGame();
 
     // Activo: colocar la primera carta Pokémon del pool
-    const activeIdx = useGameStore.getState().gameState.player1.deck.findIndex(c => 'stage' in c);
-    useGameStore.getState().placePokemonFromDeck('player1', -1, activeIdx);
+    const activeIdx = store.getState().gameState.player1.deck.findIndex(c => 'stage' in c);
+    store.getState().placePokemonFromDeck('player1', -1, activeIdx);
 
-    const active = useGameStore.getState().gameState.player1.active;
+    const active = store.getState().gameState.player1.active;
     expect(active).not.toBeNull();
     expect(active!.card.abilities).toEqual([{ name: 'Run Errand', text: 'Draw 2 cards', type: 'ability' }]);
     expect(active!.card.evolvesFrom).toBe('Dreepy');
     expect(active!.card.resistance).toEqual({ type: 'fighting', value: '-30' });
 
     // Bench: colocar la segunda carta Pokémon del pool restante
-    const benchIdx = useGameStore.getState().gameState.player1.deck.findIndex(c => 'stage' in c);
-    useGameStore.getState().placePokemonFromDeck('player1', 0, benchIdx);
+    const benchIdx = store.getState().gameState.player1.deck.findIndex(c => 'stage' in c);
+    store.getState().placePokemonFromDeck('player1', 0, benchIdx);
 
-    const benchMon = useGameStore.getState().gameState.player1.bench[0];
+    const benchMon = store.getState().gameState.player1.bench[0];
     expect(benchMon).not.toBeNull();
     expect(benchMon!.card.abilities).toEqual([{ name: 'Bench Draw', text: 'Draw 1 card', type: 'ability' }]);
   });
@@ -421,7 +419,7 @@ describe('placePokemonFromDeck', () => {
 
 describe('hasActiveGame', () => {
   it('devuelve true con deck vacío pero partida activa (deck out)', () => {
-    useGameStore.setState({
+    store.setState({
       gameState: {
         player1: { deck: [], hand: [{ name: 'X', type: 'item', description: '', rarity: 'common', id: '1' }], discardPile: [], prizes: [], active: null, bench: [] },
         player2: { deck: [], hand: [], discardPile: [], prizes: [], active: null, bench: [] },
@@ -433,36 +431,31 @@ describe('hasActiveGame', () => {
       },
     });
 
-    expect(hasActiveGame(useGameStore.getState().gameState)).toBe(true);
+    expect(hasActiveGame(store.getState().gameState)).toBe(true);
   });
 
   it('devuelve false en el estado inicial (setup, todo vacío)', () => {
-    useGameStore.setState({
-      gameState: {
-        player1: { deck: [], hand: [], discardPile: [], prizes: [], active: null, bench: [] },
-        player2: { deck: [], hand: [], discardPile: [], prizes: [], active: null, bench: [] },
-        currentPlayer: 'player1',
-        turn: 1,
-        phase: 'setup',
-        logs: [],
-        mulligan: { player1: false, player2: false },
-      },
+    store.setState({
+      gameState: emptyGameState,
     });
 
-    expect(hasActiveGame(useGameStore.getState().gameState)).toBe(false);
+    expect(hasActiveGame(store.getState().gameState)).toBe(false);
   });
 });
-  // The initial gameState is captured when the store module is first
-  // evaluated, so the restore/fallback tests re-import the module after
-  // priming the mocked localStorage.
+
+// Hydration replaces the legacy module-load restore: the store factory no
+// longer captures storage at import time, so the old "re-import the module
+// after priming localStorage" trick becomes an explicit hydrate() against a
+// primed adapter (C-3).
 describe('auto-save', () => {
-  const reloadStore = async () => {
-    vi.resetModules();
-    const { useGameStore: freshStore } = await import('./gameStore');
-    return freshStore;
+  const bootWith = async (seed: Record<string, string>) => {
+    const bootAdapter = createInMemoryStorage(seed);
+    const bootStore = createGameStore(bootAdapter);
+    await hydrate(bootStore, bootAdapter);
+    return { bootAdapter, bootStore };
   };
 
-  it('restores a saved gameState from localStorage as the initial store state', async () => {
+  it('restores a saved gameState from storage as the initial store state', async () => {
     const savedState = {
       player1: { deck: [], hand: [], discardPile: [], prizes: [], active: null, bench: [] },
       player2: { deck: [], hand: [], discardPile: [], prizes: [], active: null, bench: [] },
@@ -472,52 +465,47 @@ describe('auto-save', () => {
       logs: [],
       mulligan: { player1: false, player2: false },
     };
-    store['pokemon-autosave'] = JSON.stringify(savedState);
 
-    const freshStore = await reloadStore();
+    const { bootStore } = await bootWith({ 'pokemon-autosave': JSON.stringify(savedState) });
 
-    expect(freshStore.getState().gameState).toEqual(savedState);
+    expect(bootStore.getState().gameState).toEqual(savedState);
   });
 
   it('falls back to the initial state when the auto-save JSON is corrupted', async () => {
-    store['pokemon-autosave'] = '{ not valid json';
+    const { bootStore } = await bootWith({ 'pokemon-autosave': '{ not valid json' });
 
-    const freshStore = await reloadStore();
-
-    const { gameState } = freshStore.getState();
+    const { gameState } = bootStore.getState();
     expect(gameState.player1.deck).toHaveLength(0);
     expect(gameState.currentPlayer).toBe('player1');
   });
 
   it('falls back to the initial state when the auto-save JSON has the wrong shape', async () => {
-    store['pokemon-autosave'] = JSON.stringify({ player1: {}, player2: {}, currentPlayer: 'x' });
+    const { bootStore } = await bootWith({ 'pokemon-autosave': JSON.stringify({ player1: {}, player2: {}, currentPlayer: 'x' }) });
 
-    const freshStore = await reloadStore();
-
-    const { gameState } = freshStore.getState();
+    const { gameState } = bootStore.getState();
     expect(gameState.player1.deck).toHaveLength(0);
     expect(gameState.phase).toBe('setup');
   });
 
   it('falls back to the initial state when no auto-save exists', async () => {
-    delete store['pokemon-autosave'];
+    const { bootStore } = await bootWith({});
 
-    const freshStore = await reloadStore();
-
-    const { gameState } = freshStore.getState();
+    const { gameState } = bootStore.getState();
     expect(gameState.player1.deck).toHaveLength(0);
     expect(gameState.phase).toBe('setup');
   });
 
-  it('persists gameState under the auto-save key on every store mutation', () => {
-    useGameStore.getState().setPlayer1Deck(fullDeck);
-    useGameStore.getState().setPlayer2Deck(fullDeck);
-    useGameStore.getState().startGame();
+  it('persists gameState under the auto-save key on every store mutation', async () => {
+    store.getState().setPlayer1Deck(fullDeck);
+    store.getState().setPlayer2Deck(fullDeck);
+    store.getState().startGame();
 
-    const saved = JSON.parse(store['pokemon-autosave']);
-    expect(saved.gameState.player1.deck).toHaveLength(60);
-    expect(saved.gameState.player2.deck).toHaveLength(60);
-    expect(saved.gameState.currentPlayer).toBe('player1');
+    await vi.waitFor(() => {
+      const saved = JSON.parse(adapter.dump()['pokemon-autosave']!);
+      expect(saved.gameState.player1.deck).toHaveLength(60);
+      expect(saved.gameState.player2.deck).toHaveLength(60);
+      expect(saved.gameState.currentPlayer).toBe('player1');
+    });
   });
 
   it('persists mutations to the auto-save key after restoring from it', async () => {
@@ -530,53 +518,77 @@ describe('auto-save', () => {
       logs: [],
       mulligan: { player1: false, player2: false },
     };
-    store['pokemon-autosave'] = JSON.stringify(savedState);
 
-    const freshStore = await reloadStore();
-    freshStore.getState().setPlayer1Deck(fullDeck);
-    freshStore.getState().setPlayer2Deck(fullDeck);
-    freshStore.getState().startGame();
+    const { bootAdapter, bootStore } = await bootWith({ 'pokemon-autosave': JSON.stringify(savedState) });
+    bootStore.getState().setPlayer1Deck(fullDeck);
+    bootStore.getState().setPlayer2Deck(fullDeck);
+    bootStore.getState().startGame();
 
-    const saved = JSON.parse(store['pokemon-autosave']);
-    expect(saved.gameState.player1.deck).toHaveLength(60);
-    expect(saved.gameState.currentPlayer).toBe('player1');
+    await vi.waitFor(() => {
+      const saved = JSON.parse(bootAdapter.dump()['pokemon-autosave']!);
+      expect(saved.gameState.player1.deck).toHaveLength(60);
+      expect(saved.gameState.currentPlayer).toBe('player1');
+    });
+  });
+
+  it('restores the selected decks and resetGame keeps them after hydration (R6)', async () => {
+    const deck: DeckPreset = { name: 'Saved Deck', description: 'x', pokemon: [], trainers: [], energies: [] };
+    const savedState = {
+      player1: { deck: [], hand: [], discardPile: [], prizes: [], active: null, bench: [] },
+      player2: { deck: [], hand: [], discardPile: [], prizes: [], active: null, bench: [] },
+      currentPlayer: 'player1',
+      turn: 1,
+      phase: 'setup',
+      logs: [],
+      mulligan: { player1: false, player2: false },
+    };
+
+    const { bootStore } = await bootWith({
+      'pokemon-autosave': JSON.stringify({ gameState: savedState, player1Deck: deck, player2Deck: deck }),
+    });
+
+    expect(bootStore.getState().player1Deck?.name).toBe('Saved Deck');
+    bootStore.getState().resetGame();
+
+    expect(bootStore.getState().player1Deck?.name).toBe('Saved Deck');
+    expect(bootStore.getState().player2Deck?.name).toBe('Saved Deck');
   });
 });
 
 describe('swapPlayers', () => {
   it('intercambia player1 y player2 junto con currentPlayer', () => {
-    useGameStore.getState().setPlayer1Deck(fullDeck);
-    useGameStore.getState().setPlayer2Deck(fullDeck);
-    useGameStore.getState().startGame();
+    store.getState().setPlayer1Deck(fullDeck);
+    store.getState().setPlayer2Deck(fullDeck);
+    store.getState().startGame();
 
     const card = { name: 'P1Mon', stage: 'basic' as const, hp: 100, type: 'psychic', attacks: [], retreatCost: 1, rarity: 'common' as const };
-    useGameStore.getState().setActivePokemon('player1', { id: 'p1', card, currentHp: 100, attachedEnergy: [], status: 'none' as const, damage: 0, isActive: true });
+    store.getState().setActivePokemon('player1', { id: 'p1', card, currentHp: 100, attachedEnergy: [], status: 'none' as const, damage: 0, isActive: true });
 
-    useGameStore.getState().swapPlayers();
+    store.getState().swapPlayers();
 
-    const gs = useGameStore.getState().gameState;
+    const gs = store.getState().gameState;
     expect(gs.player2.active?.id).toBe('p1');
     expect(gs.player1.active).toBeNull();
     expect(gs.currentPlayer).toBe('player2');
   });
 
   it('swap es su propia inversa (dos swaps vuelven al estado original)', () => {
-    useGameStore.getState().swapPlayers();
-    useGameStore.getState().swapPlayers();
+    store.getState().swapPlayers();
+    store.getState().swapPlayers();
 
-    expect(useGameStore.getState().gameState.currentPlayer).toBe('player1');
+    expect(store.getState().gameState.currentPlayer).toBe('player1');
   });
 });
 
 describe('resetGame', () => {
   it('resetea el gameState a inicial y limpia los mazos seleccionados', () => {
-    useGameStore.getState().setPlayer1Deck(fullDeck);
-    useGameStore.getState().setPlayer2Deck(fullDeck);
-    useGameStore.getState().startGame();
+    store.getState().setPlayer1Deck(fullDeck);
+    store.getState().setPlayer2Deck(fullDeck);
+    store.getState().startGame();
 
-    useGameStore.getState().resetGame();
+    store.getState().resetGame();
 
-    const state = useGameStore.getState();
+    const state = store.getState();
     expect(state.gameState.player1.deck).toHaveLength(0);
     expect(state.gameState.player1.active).toBeNull();
     expect(state.gameState.currentPlayer).toBe('player1');
@@ -584,14 +596,50 @@ describe('resetGame', () => {
     expect(state.player2Deck).toBeNull();
   });
 
-  it('persiste el estado vacío al autosave (no restaura el escenario viejo)', () => {
-    useGameStore.getState().setPlayer1Deck(fullDeck);
-    useGameStore.getState().setPlayer2Deck(fullDeck);
-    useGameStore.getState().startGame();
+  it('persiste el estado vacío al autosave (no restaura el escenario viejo)', async () => {
+    store.getState().setPlayer1Deck(fullDeck);
+    store.getState().setPlayer2Deck(fullDeck);
+    store.getState().startGame();
 
-    useGameStore.getState().resetGame();
+    store.getState().resetGame();
 
-    const saved = JSON.parse(store['pokemon-autosave']);
-    expect(saved.gameState.player1.deck).toHaveLength(0);
+    await vi.waitFor(() => {
+      const saved = JSON.parse(adapter.dump()['pokemon-autosave']!);
+      expect(saved.gameState.player1.deck).toHaveLength(0);
+    });
+  });
+});
+
+describe('custom decks', () => {
+  it('persists addCustomDeck through the adapter (C-5)', async () => {
+    await store.getState().addCustomDeck(fullDeck);
+
+    const persisted = JSON.parse(adapter.dump()['pokemon-custom-decks']!);
+    expect(persisted).toHaveLength(1);
+    expect(persisted[0].name).toBe('Full Test Deck');
+  });
+
+  it('persists removeCustomDeck through the adapter (C-5)', async () => {
+    await store.getState().addCustomDeck(fullDeck);
+    const id = store.getState().customDecks[0].id!;
+
+    await store.getState().removeCustomDeck(id);
+
+    expect(store.getState().customDecks).toHaveLength(0);
+    expect(JSON.parse(adapter.dump()['pokemon-custom-decks']!)).toHaveLength(0);
+  });
+
+  it('loadCustomDecks re-reads decks from the adapter (C-5)', async () => {
+    const savedDecks = [{ ...fullDeck, id: 'stored-id' }];
+    adapter = createInMemoryStorage({
+      'pokemon-data-version': DATA_VERSION,
+      'pokemon-custom-decks': JSON.stringify(savedDecks),
+    });
+    store = createGameStore(adapter);
+    await hydrate(store, adapter);
+
+    await store.getState().loadCustomDecks();
+
+    expect(store.getState().customDecks).toEqual(savedDecks);
   });
 });

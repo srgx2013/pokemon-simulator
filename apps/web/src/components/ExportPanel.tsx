@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useGameStore } from '../store/gameStore';
+import { useGameStore } from '../lib/gameStore';
 
 // URL del coach server local. Para acceso remoto vía Tailscale, cambiá a
 // http://<tu-ip-tailscale>:9000 (y arrancá el server con COACH_HOST=0.0.0.0).
