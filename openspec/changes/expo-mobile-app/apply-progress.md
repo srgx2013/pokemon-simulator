@@ -264,3 +264,87 @@ Session artifact store = `openspec` (file-based); no `openspec/state.yaml` exist
 - AsyncStorage native module, expo-clipboard/sharing/file-system native modules are SDK-57-standard but their device behavior is unverified in this environment.
 - The template's nested `node_modules` (react 19.2.3 etc.) is an npm hoisting artifact; `package-lock.json` records it. Web export of the mobile app remains broken (deviation 6) — out of scope, tracked.
 - Root `package-lock.json` changed (+~527 packages) as expected for the new workspace (single-lockfile contract A-2).
+
+---
+
+# Apply Progress — `expo-mobile-app` (PR 4 / Slice 4: S4.1–S4.5)
+
+> **Phase:** sdd-apply · **Change:** expo-mobile-app · **Store:** openspec (file-based)
+> **Delivery:** stacked-to-main; PR 4 = Slice 4 whole (gameplay screens, mobile-only; web untouched); branch `chore/expo-mobile-screens` off `eae78ae` (PR 3 head / `chore/expo-mobile-shell`)
+> **Mode:** strict TDD active (`npm test`, vitest) — the four new logic modules (deck browser, board state, import/export, scenario wiring) landed RED→GREEN (evidence below); components are simulator/schema-evidenced per H-3 (no jest-expo).
+> **Baseline:** eae78ae, clean tree; 13 files / 182 tests green.
+
+## Structured status consumed
+
+Session artifact store = `openspec` (file-based); no `openspec/state.yaml` exists (store is artifact-files only) → status resolved per the SDD status-contract fallback: `applyState: in-progress → completed for Slice 4`; `dependencies`: none unmet (S4.1 → S4.2a → S4.2b → S4.3/S4.4/S4.5 chain; RED logic landed before the screens); `blockedReasons`: none; `actionContext`: no workspace-planning mode, no `allowedEditRoots` restriction, edits confined to the repo. Skill resolution: `paths-injected` (work-unit-commits, chained-pr, branch-pr SKILL.md paths read before implementation).
+
+## Completed tasks (checkbox updates in `tasks.md` — all verified `- [x]` by re-read)
+
+| Task | Persisted checkbox | Evidence |
+|------|--------------------|----------|
+| S4.1 `PokemonCardView` mobile-first card render | `- [x]` (commit 02c9d45) | RN `Image` card + graceful image-failure placeholder (G-1), HP bar, energy orbs (`energyColors`), damage/status/ACTIVE badges, attacks+abilities details; Metro sourcemap lists `components/pokemon-card-view.tsx` in the iOS bundle |
+| S4.2a `GameBoard` base + primary loop | `- [x]` (commit 02c9d45) | active/bench zones, start (via decks tab), place-from-deck picker (grouped, web parity), swap players, reset (Alert confirm, D-4); all transitions through core `gameStore` actions (E-1); `app/index.tsx` empty-state gate (`hasActiveGame`) |
+| S4.2b GameBoard full interaction surface | `- [x]` (commits 02c9d45, bc08162) | HP ±10, **damage ±10 (E-1)**, status chips, basic+special energy add/remove with side-wide deck limits (web parity), hand/discard/prizes/deck zone modals (tabs + filter + add-from-deck + remove, prizes cap 6), autosave restore via core hydrate (E-2) |
+| S4.3 `DeckSelectorModal` + decks tab | `- [x]` (commit b931525) | presets from bundled core data (B-4), custom deck add/remove async adapter-persisted (C-5/E-3), external list resolution via core `parseDeckListWithApi` (pacing/cache per E-4/G-1; `mobileStorage` adapter), input via `Modal` + confirm via `Alert` (D-4) |
+| S4.4 `ExportPanelView` + export tab | `- [x]` (commit 56144a8) | export via core `stateExporter` (call shape identical to web `getStateForAI` → F-1 byte parity), `lib/clipboard.copyText` + `shareText` (F-1), import via core `stateImporter` with round-trip equality (F-2), no `navigator.clipboard`/`document.createElement` (D-4), no coach entry point (D-3) |
+| S4.5 `ScenarioEditorView` + scenarios tab | `- [x]` (commit 61ab152) | save current game as named scenario (guard on active game), load, delete — async adapter-persisted (C-5), hydrate read-back seeds across relaunch (F-3, covered by scenarioWiring unit test) |
+
+## TDD Cycle Evidence (strict TDD — RED → GREEN)
+
+| Cycle | RED (failing) | GREEN (passing) | Refactor |
+|-------|---------------|-----------------|----------|
+| Deck browser logic (`deckUtils`) | `Cannot find module './deckUtils'` (suite fails) | 16 passed (counts, classify, filter, pokemonInDeck, grouping) | none (new file; mirrors web catLabel/picker) |
+| Board state helpers (`boardState`) | `Cannot find module './boardState'` (suite fails) | 12 passed (instance lookup, energy pool, limits, attached counts, atLimit) | `EditPokemonSheet` takes side-wide `attachedCounts` (energy pool is shared per side, web parity) |
+| Import/export wiring (`importExport`) | `Cannot find module './importExport'` (suite fails) | 6 passed (F-1 section parity, fallback decks, F-2 valid/invalid/round-trip) | test fix: fallback assertion uses real headings |
+| Scenario wiring (`scenarioWiring`) | `Cannot find module './scenarioWiring'` (suite fails) | 7 passed (guard, save+persist, load restore, delete, hydrate read-back F-3) | test fix: read-back test settles the device version key first (migrate wipes scenarios on mismatch — slice-2 deviation #5) |
+
+RED run: 4 failed / 13 passed (182 existing green). GREEN run: **17 files / 217 tests pass** (+35 slice-4).
+
+## Files changed (7 work-unit commits on `chore/expo-mobile-screens`)
+
+1. `91e9ff6 test(mobile): add RED slice 4 logic tests (deck browser, board state, import/export, scenario wiring)` — `src/lib/{deckUtils,boardState,importExport,scenarioWiring}.test.ts` (new)
+2. `49dc54a feat(mobile): add deck browsing, board-state, import/export and scenario wiring logic (green)` — the four `src/lib/*.ts` modules + test tweaks (settled-device + fixture typing)
+3. `02c9d45 feat(mobile): add PokemonCardView and full GameBoard with picker, edit and zone surfaces (S4.1, S4.2a, S4.2b)` — `src/components/{pokemon-card-view,game-board}.tsx` (new), `src/app/index.tsx` (empty-state gate), `tasks.md` S4.1/S4.2a/S4.2b → `[x]`
+4. `b931525 feat(mobile): add deck browser tab with preset browser, custom deck CRUD and list import modal (S4.3)` — `src/components/deck-selector-modal.tsx` (new), `src/app/decks.tsx`, `tasks.md` S4.3 → `[x]`
+5. `56144a8 feat(mobile): add export/import panel with clipboard, share sheet and JSON import (S4.4)` — `src/components/export-panel-view.tsx` (new), `src/app/export.tsx`, `tasks.md` S4.4 → `[x]`
+6. `61ab152 feat(mobile): add scenario editor view with save, load and delete lifecycle (S4.5)` — `src/components/scenario-editor-view.tsx` (new), `src/app/scenarios.tsx`, `tasks.md` S4.5 → `[x]`
+7. `bc08162 feat(mobile): add damage counter control to the pokemon edit sheet (E-1)` — damage ±10 via core `addDamage` (spec E-1 lists add damage; follow-up within the board work unit after an amend-split fix)
+
+## Test commands run (all green at HEAD)
+
+- `npm test` — **17 files, 217 tests pass** (baseline 13/182; +35 slice-4: deckUtils 16, boardState 12, importExport 6, scenarioWiring 7 — minus the 6 fixture assertions folded into GREEN commits, net module coverage)
+- `npx tsc -b` (root solution: core + web + mobile) — clean
+- `npx tsc --noEmit -p apps/mobile/tsconfig.json` — clean (new components + libs under shared strict base, A-3)
+- `npm run build` (web) — `✓ built`; bundle hash **byte-identical to slice 3** (`index-BRTt3H1-.js`) — web untouched (A-5)
+- `npm run export -w @pokemon-simulator/mobile -- --dump-sourcemap` — iOS Hermes bundle `entry-12d88fbb….hbc.map`; sourcemap lists **all 13 new slice-4 sources** (`src/app/{index,decks,export,scenarios}.tsx`, `src/components/{game-board,pokemon-card-view,deck-selector-modal,export-panel-view,scenario-editor-view}.tsx`, `src/lib/{deckUtils,boardState,importExport,scenarioWiring}.ts`)
+- Scans: D-3 — "coach" appears in mobile sources **only in comments** (absent UI, no HTTP calls); D-4/B-3 — `navigator.clipboard`/`document.createElement` appear **only in comments** explaining their absence; B-4 — `data/cards.generated.ts` present in the exported bundle (1 hit in sourcemap)
+
+## Deviation log (from design.md / tasks.md — deliberate, none silent)
+
+1. **File paths follow the SDK 57 template `src/` layout** (deviation #1 from slice 3 continues): components land under `apps/mobile/src/components/` and libs under `apps/mobile/src/lib/` — the tasks.md "`apps/mobile/components/…`" paths from the SDK-53-era design map to those, matching the shipped shell.
+2. **Edit sheet energy limits are side-wide, not per-pokemon** — matches the web board exactly (`totalAtt` computed across active+bench of the side, shared energy pool), implemented by passing `computeAttachedCounts(sideState)` into `EditPokemonSheet`; the at-limit disable therefore accounts for energy used by *other* pokemon on the same side.
+3. **Damage control added as its own follow-up commit** — spec E-1 ("add damage") needs an explicit surface; the amend that first folded it into the S4.5 commit was split back out (soft-reset → re-commit) so each commit's content matches its work-unit message.
+4. **`importStateText` is a thin typed wrapper over the core importer** — per spec F-2 the mobile import must run the *same* core `importStateFromJson` the web uses (round-trip parity); the module exists to give the wiring a test surface and keeps the component free of importer details.
+5. **Scenario read-back test settles the device first** (`adapter.setItem(dataVersion, DATA_VERSION)`) — `migrateData` wipes `pokemon-scenarios`/`pokemon-custom-decks` on version mismatch (exact legacy web v2 behavior, covered by core `migrate.test.ts`; slice-2 deviation #5). The F-3 relaunch test exercises a settled device, which is the real app flow after the first boot.
+6. **`DeckSelectorModal` lives on the decks tab, not floating over the board** — the web header selector is replaced by the Biblioteca tab (D-1's four surfaces); the board empty-state routes to `/decks` for deck selection, and "Iniciar partida" starts from there (E-1 "start game" still flows through the core `startGame` action).
+7. **Strict TDD applies to the four logic modules only** — components and their wiring are simulator/schema-evidenced exactly as H-3 and the task text prescribe (no jest-expo); the scenario/import wiring *logic* is unit-tested through the real store + in-memory adapter.
+
+## Remaining tasks (slices 2 tail + 5 + parent gates, out of scope for PR 4 — exact unchecked lines)
+
+- `- [ ] S2.12` — REFACTOR: ExportPanel coach session through the web adapter (7th key)
+- `- [ ] S2.13` — GREEN: core barrel + DOM-free boundary scan (barrel content already shipped at S2.11; scan re-verification remains)
+- `- [ ] S5.1` … `- [ ] S5.3` (verification sweep: web parity + deploy smoke, mobile acceptance matrix, spec traceability)
+- Parent-owned lifecycle gates (bounded review, workload guard, sdd-verify, sdd-archive) remain `- [ ]` — preserved byte-for-byte.
+- Slice 4 is fully checked: S4.1–S4.5 all `- [x]`.
+
+## Workload / PR boundary
+
+- **PR 4 = Slice 4 whole (S4.1–S4.5)**, 7 commits + this docs commit; branch `chore/expo-mobile-screens` from `eae78ae`. **Honest assessment:** hand-written diff is over the 400-line review guideline (~2,100 additions across components + libs + tests) — the SDD forecast split Slice 4 into sub-PRs 4a–4e (est. ~1,550; PokémonCardView+board 4a/4b, decks 4c, export 4d, scenarios 4e) and the orchestrator delegated the whole slice as ONE PR (same pattern as PR 2/PR 3). No generated files were touched, so no `size:exception` is claimed — the PR body states the actual diff stats and the forecast's sub-PR boundaries for reviewer navigation (work-unit commits align: 02c9d45 ≈ 4a+4b, b931525 ≈ 4c, 56144a8 ≈ 4d, 61ab152 ≈ 4e). Web sources untouched (`npm run build` hash-identical), so A-5 holds at this merge.
+- After this PR: S2.12/S2.13 (slice 2 tail), then Slice 5 (verification sweep) is the next slice; nothing in slice 5 was touched.
+
+## Risks / residual
+
+- **Simulator/emulator verification NOT performed** (no iOS runtimes installed — same environment limitation as slice 3): E-1/E-2/E-3/F-1/F-2/F-3/G-1/G-2 runtime acceptance, kill-and-relaunch restore and offline mode need `sdd-verify`/S5.2 on real devices. Bundle-level evidence (sourcemap) + unit wiring tests are recorded above; runtime-only issues (e.g. Modal/Alert native behavior, FlatList/ScrollView interactions on device) can only surface in the simulator.
+- `parseDeckListWithApi` on a networked device performs real fetches with the existing 8s timeout + backoff; while imports resolve cache-first (E-4), a fully offline *first* import of an unknown card waits on the timeout path (graceful degradation per G-2 — UI shows progress and the import either resolves from local DB/heuristics or surfaces an error, never crashes).
+- No direct `addDamage` clamping in the store — the sheet disables the minus button at `damage === 0` to avoid negative counters (web leaves damage unclamped too; UI-level guard only).
+- Lint baseline debt (83 pre-existing web errors) unchanged; mobile additions were not linted (`expo lint` config off by default) — same posture as slice 3.
