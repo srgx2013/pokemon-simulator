@@ -123,6 +123,55 @@ export function ExportPanelView() {
     }
   };
 
+  const parseStateJson = (obj: any): any => {
+    if (!obj || typeof obj !== 'object') return null;
+    if (obj.gameState && typeof obj.gameState === 'object') return obj.gameState;
+    if (obj.estadoDelTurno && typeof obj.estadoDelTurno === 'object') return obj.estadoDelTurno;
+    return null;
+  };
+
+  const parseCoachState = (text: string): any => {
+    if (!text) return null;
+    try {
+      const parsed = JSON.parse(text);
+      const direct = parseStateJson(parsed);
+      if (direct) return direct;
+    } catch {
+      // not plain JSON — look for a fenced ```json block
+    }
+    const m = text.match(/```json\s*([\s\S]*?)\s*```/);
+    if (m) {
+      try {
+        const parsed = JSON.parse(m[1]);
+        const fromBlock = parseStateJson(parsed);
+        if (fromBlock) return fromBlock;
+      } catch {
+        // ignore malformed fenced block
+      }
+    }
+    return null;
+  };
+
+  const loadCoachResultAsBoard = () => {
+    const state = parseCoachState(coachResult);
+    if (!state) {
+      Alert.alert('Sin estado', 'El resultado de Pi no contiene JSON de estado para cargar.');
+      return;
+    }
+    const result = importStateText(JSON.stringify(state), {
+      player1: player1Deck,
+      player2: player2Deck,
+    });
+    if (!result.ok) {
+      Alert.alert('Error', (result.errors ?? ['no se pudo importar']).join('\n'));
+      return;
+    }
+    importGameState(result.gameState);
+    setCoachModalOpen(false);
+    router.replace('/');
+    Alert.alert('Tablero creado', 'El estado del resultado se cargó en el tablero.');
+  };
+
   const loadKeyScenario = () => {
     const esc = keyResult?.escenarioClave;
     if (!esc?.estadoDelTurno) {
@@ -171,6 +220,14 @@ export function ExportPanelView() {
   const [keyModalOpen, setKeyModalOpen] = useState(false);
 
   const sendToCoach = async () => {
+    const hasBoard = !!(gameState?.player1?.active || gameState?.player2?.active);
+    if (!hasBoard) {
+      Alert.alert(
+        'El tablero está vacío',
+        'Armá la partida (activos/bench) antes de enviar a Pi — si no, el análisis sale vacío.',
+      );
+      return;
+    }
     setCoachStatus('sending');
     setCoachError(null);
     setCoachResult('');
@@ -318,7 +375,7 @@ export function ExportPanelView() {
             Log enviado (id {keyId}). Pi determina el escenario clave — tocá &quot;Ver escenario&quot; cuando esté.
           </Text>
         )}
-        {keyId && keyStatus === 'idle' && (
+        {keyId && (keyStatus === 'pending' || keyStatus === 'idle') && (
           <Pressable style={styles.promptBtn} onPress={checkKeyResult}>
             <Text style={styles.promptBtnText}>🔎 Ver escenario clave</Text>
           </Pressable>
@@ -371,8 +428,13 @@ export function ExportPanelView() {
             </View>
             <ScrollView style={styles.resultScroll}>
               <Text selectable style={styles.preview}>
-                {coachResult}
+                {coachResult || '(sin contenido)'}
               </Text>
+              {parseCoachState(coachResult) && (
+                <Pressable style={styles.loadBtn} onPress={loadCoachResultAsBoard}>
+                  <Text style={styles.loadBtnText}>📥 Crear tablero desde el resultado (JSON)</Text>
+                </Pressable>
+              )}
             </ScrollView>
           </View>
         </View>
