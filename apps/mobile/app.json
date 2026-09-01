@@ -8,6 +8,7 @@
     "scheme": "mobile",
     "userInterfaceStyle": "automatic",
     "ios": {
+      "bundleIdentifier": "com.srgx2013.pokemonsimulator",
       "icon": "./assets/expo.icon",
       "infoPlist": {
         "NSAppTransportSecurity": {
